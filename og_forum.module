@@ -1,0 +1,112 @@
+<?php
+
+// $Id$
+
+/**
+ * @file
+ * Creates a forum per organic group and restricts viewing forum nodes by group membership.
+ */
+
+/**
+ * Implementation of hook_help().
+ */
+function og_forum_help($section) {
+  switch ($section) {
+    case 'admin/modules#description':
+      return t('Ties forums to organic groups.');
+  }
+}
+
+/**
+ * Implementation of hook_db_rewrite_sql().
+ *
+ * Restricts forum viewing by organic group.
+ */
+function og_forum_db_rewrite_sql($query, $primary_table = 'n', $primary_field = 'nid') {
+  global $user;
+
+  if ($primary_field == 'tid') {
+
+    // Only do this on forum nodes
+    $restrict = FALSE;
+    if (db_result(db_query('SELECT type FROM {node} WHERE nid = %d', arg(1))) == 'forum') {
+      $restrict = TRUE;
+    }
+    else if (arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum') {
+      $restrict = TRUE;
+    }
+
+    // If on a forum node, prevent display of all forums; only the ones for this organic group
+    // The forum vocab should have a lower weight than any other vocabulary assigned to forum nodes.
+    static $og_vocab = FALSE;
+    if ($restrict) {
+      $return['join'] = "LEFT JOIN {og_term} ogt ON $primary_table.tid = ogt.tid LEFT JOIN {og_uid} ogu ON ogt.nid = ogu.nid AND ogu.uid = $user->uid";
+      if (arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum') {
+        $og_nid = intval($_GET['edit']['og_groups'][0]);
+        if ($og_nid && !$og_vocab) {
+          $og_vocab = TRUE;
+          $return['where'] = "ogt.nid = $og_nid";
+        }
+      }
+      $return['distinct'] = TRUE;
+      return $return;
+    }
+    else {
+      return NULL;
+    }
+
+  }
+}
+
+/**
+ * Implementation of hook_nodeapi().
+ *
+ * Automatically creates a forum container and forum each time an organic group is added.
+ */
+function og_forum_nodeapi($node, $op, $teaser = NULL) {
+  switch ($op) {
+    case 'create':
+      if (arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum' && !isset($_GET['edit']['og_groups'][0])) {
+        return FALSE;
+      }
+      break;
+    case 'insert':
+      if ($node->type == 'og') {
+        $edit = array('name' => $node->title, 'vid' => _forum_get_vid());
+        $edit = taxonomy_save_term($edit);
+        $containers = variable_get('forum_containers', array());
+        $containers[] = $edit['tid'];
+        variable_set('forum_containers', $containers);
+        db_query('INSERT INTO {og_term} (tid, nid) VALUES (%d, %d)', $edit['tid'], $node->nid);
+        $edit['name'] = t('Generic discussion');
+        $edit['parent'] = array($edit['tid']);
+        unset($edit['tid']);
+        $edit = taxonomy_save_term($edit);
+        db_query('INSERT INTO {og_term} (tid, nid) VALUES (%d, %d)', $edit['tid'], $node->nid);
+      }
+      break;
+    case 'delete':
+      if ($node->type == 'og') {
+        $result = db_query('SELECT tid FROM {og_term} WHERE nid = %d', $node->nid);
+        while ($term = db_fetch_object($result)) {
+          taxonomy_del_term($term->tid);
+        }
+        db_query('DELETE FROM {og_term} WHERE nid = %d', $node->nid);
+      }
+      break;
+  }
+}
+
+/**
+ * Retrieve forum for given group
+ *
+ * @param $group_id
+ *   Organic group ID
+ * @return
+ *   Forum's term ID
+ */
+function og_forum_get_forum($group_id) {
+  // Grab most recent term created for group; this will be the forum as
+  // opposed to the forum container.
+  return db_result(db_query_range('SELECT tid FROM {og_term} WHERE nid = %d ORDER BY tid DESC', $group_id, 0, 1));
+}

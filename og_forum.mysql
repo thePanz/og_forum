@@ -1,0 +1,11 @@
+-- $Id$
+
+--
+-- Ties organic groups to taxonomy terms
+--
+
+CREATE TABLE og_term (
+  tid int(10) unsigned NOT NULL default '0',
+  nid int(10) unsigned NOT NULL default '0',
+  PRIMARY KEY  (tid,nid)
+) TYPE=MyISAM;
