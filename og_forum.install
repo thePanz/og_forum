@@ -1,0 +1,30 @@
+<?php
+// $Id$
+
+/**
+ * Implementation of hook_install().
+ */
+function og_forum_install() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      db_query("
+        CREATE TABLE IF NOT EXISTS {og_term} (
+          tid int(10) unsigned NOT NULL default '0',
+          nid int(10) unsigned NOT NULL default '0',
+          PRIMARY KEY  (tid,nid)
+        ) /*!40100 DEFAULT CHARACTER SET utf8 */;
+      ");
+      break;
+    case 'psgql':
+      // TODO
+      break;
+  }
+}
+
+/**
+ * Update module for UTF.
+ */
+function og_forum_update_1() {
+  return _system_update_utf8(array('og_term'));
+}
