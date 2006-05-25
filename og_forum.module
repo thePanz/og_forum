@@ -28,8 +28,7 @@ function og_forum_db_rewrite_sql($query, $primary_table = 'n', $primary_field = 
   if ($primary_field == 'tid') {
 
     // Only do this on forum nodes
-    $restrict = FALSE;
-    if (db_result(db_query('SELECT type FROM {node} WHERE nid = %d', arg(1))) == 'forum') {
+    if (arg(0) == 'forum' || db_result(db_query('SELECT type FROM {node} WHERE nid = %d', arg(1))) == 'forum') {
       $restrict = TRUE;
     }
     else if (arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum') {
@@ -40,7 +39,8 @@ function og_forum_db_rewrite_sql($query, $primary_table = 'n', $primary_field = 
     // The forum vocab should have a lower weight than any other vocabulary assigned to forum nodes.
     static $og_vocab = FALSE;
     if ($restrict) {
-      $return['join'] = "LEFT JOIN {og_term} ogt ON $primary_table.tid = ogt.tid LEFT JOIN {og_uid} ogu ON ogt.nid = ogu.nid AND ogu.uid = $user->uid";
+      $return['join'] = "INNER JOIN {og_term} ogt ON $primary_table.tid = ogt.tid LEFT JOIN {og_uid} ogu ON ogt.nid = ogu.nid AND ogu.uid = $user->uid";
+      $return['where'] = '1=1';
       if (arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum') {
         $og_nid = intval($_GET['edit']['og_groups'][0]);
         if ($og_nid && !$og_vocab) {
@@ -73,15 +73,16 @@ function og_forum_nodeapi($node, $op, $teaser = NULL) {
     case 'insert':
       if ($node->type == 'og') {
         $edit = array('name' => $node->title, 'vid' => _forum_get_vid());
-        $edit = taxonomy_save_term($edit);
+        $status = taxonomy_save_term($edit);
         $containers = variable_get('forum_containers', array());
         $containers[] = $edit['tid'];
         variable_set('forum_containers', $containers);
         db_query('INSERT INTO {og_term} (tid, nid) VALUES (%d, %d)', $edit['tid'], $node->nid);
+
         $edit['name'] = t('Generic discussion');
         $edit['parent'] = array($edit['tid']);
         unset($edit['tid']);
-        $edit = taxonomy_save_term($edit);
+        $status = taxonomy_save_term($edit);
         db_query('INSERT INTO {og_term} (tid, nid) VALUES (%d, %d)', $edit['tid'], $node->nid);
       }
       break;
