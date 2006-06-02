@@ -111,3 +111,35 @@ function og_forum_get_forum($group_id) {
   // opposed to the forum container.
   return db_result(db_query_range('SELECT tid FROM {og_term} WHERE nid = %d ORDER BY tid DESC', $group_id, 0, 1));
 }
+
+/**
+ * Implementation of hook_form_alter().
+ */
+function og_forum_form_alter($form_id, &$form) {
+  // Dependency checker
+  if ($form_id == 'system_modules' && !$_POST) {
+    og_forum_system_module_validate($form);
+  }
+}
+
+/**
+ * Validates module dependencies for the module.
+ */
+function og_forum_system_module_validate(&$form) {
+  $module = 'og_forum';
+  $dependencies = array('og', 'forum', 'taxonomy', 'comment');
+
+  foreach ($dependencies as $dependency) {
+      if (!in_array($dependency, $form['status']['#default_value'])) {
+        $missing_dependency = TRUE;
+        $missing_dependency_list[] = $dependency;
+      }
+  }
+
+  if (in_array($module, $form['status']['#default_value']) && isset($missing_dependency)) {
+    db_query("UPDATE {system} SET status = 0 WHERE type = 'module' AND name = '%s'", $module);
+    $key = array_search($module, $form['status']['#default_value']);
+    unset($form['status']['#default_value'][$key]);
+    drupal_set_message(t('The module %module was deactivated--it requires the following disabled/non-existant modules to function properly: %dependencies', array('%module' => $module, '%dependencies' => implode(', ', $missing_dependency_list))), 'error');
+  }
+}
