@@ -21,10 +21,3 @@ function og_forum_install() {
       break;
   }
 }
-
-/**
- * Update module for UTF.
- */
-function og_forum_update_1() {
-  return _system_update_utf8(array('og_term'));
-}
