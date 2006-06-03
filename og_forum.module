@@ -18,6 +18,35 @@ function og_forum_help($section) {
 }
 
 /**
+ * Implementation of hook_settings().
+ */
+function og_forum_settings() {
+  $form['#submit']['og_forum_settings_submit'] = array(); // custom submit handler
+  $form['#submit']['system_settings_form_submit'] = array(); // form.inc never calls the $callback if a submit handler is defined
+
+  $form['update'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Retroactively update old groups'),
+    '#description' => t('Pressing this button will create forums for any groups that do not already have them.'),
+    '#collapsible' => TRUE,
+  );
+  $form['update']['button'] = array(
+    '#type' => 'submit',
+    '#value' => t('Update old groups'),
+  );
+  return $form;
+}
+
+/**
+ * Custom submit handler for group update
+ */
+function og_forum_settings_submit($form_id, $form_values) {
+  if ($_POST['op'] == t('Update old groups')) {
+    og_forum_retroactively_apply();
+  }
+}
+
+/**
  * Implementation of hook_db_rewrite_sql().
  *
  * Restricts forum viewing by organic group.
@@ -110,6 +139,25 @@ function og_forum_get_forum($group_id) {
   // Grab most recent term created for group; this will be the forum as
   // opposed to the forum container.
   return db_result(db_query_range('SELECT tid FROM {og_term} WHERE nid = %d ORDER BY tid DESC', $group_id, 0, 1));
+}
+
+
+/**
+ * Creates forums for all groups that don't have any yet.
+ */
+function og_forum_retroactively_apply() {
+  $counter = 0;
+  // Obtain list of all groups
+  $result = db_query('SELECT og.nid, n.title, n.type FROM {og} og INNER JOIN {node} n on og.nid = n.nid');
+  while ($group = db_fetch_object($result)) {
+    // See if terms are found for this group
+    if (!db_result(db_query('SELECT * FROM {og_term} ogt WHERE ogt.nid = %d', $group->nid))) {
+      // If so, fake a nodeapi insert
+      og_forum_nodeapi($group, 'insert');
+      $counter++;
+    }
+  }
+  drupal_set_message(t('%num groups had forums created', array('%num' => $counter)));
 }
 
 /**
