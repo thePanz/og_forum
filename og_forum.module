@@ -232,9 +232,9 @@ function og_forum_form_alter($form_id, &$form) {
   // Auto-select group's forum when adding/editing a forum topic
   if ($form_id == 'forum_node_form') {
     $group = og_get_group_context();
-    $term = og_forum_get_forum();
     if ($group->nid) {
       $vid =  _forum_get_vid();
+      $term = og_forum_get_forum($group->nid);
       $form['taxonomy'][$vid]['#default_value'] = $term;
     }
   }
