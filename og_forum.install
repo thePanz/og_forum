@@ -15,9 +15,37 @@ function og_forum_install() {
           PRIMARY KEY  (tid,nid)
         ) /*!40100 DEFAULT CHARACTER SET utf8 */
       ");
+      db_query("UPDATE {system} SET weight = %d WHERE name = '%s'", 2, 'og_forum');
+      $vid = _forum_get_vid();
+      db_query("UPDATE {vocabulary} SET weight = %d WHERE vid = %d", -10, $vid);
       break;
     case 'psgql':
       // TODO
       break;
   }
+}
+
+/**
+ * Increase weight of og_forum so that it comes after taxonomy, to allow
+ * for auto-selecting forum.
+ *
+ * Also, decrease the weight for the forum vocabulary so it is always first
+ * to be selected in a forum topic.
+ */
+function og_forum_update_1() {
+  $ret = array();
+  $vid = _forum_get_vid();
+
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      db_query("UPDATE {system} SET weight = %d WHERE name = '%s'", 2, 'og_forum');
+      db_query("UPDATE {vocabulary} SET weight = %d WHERE vid = %d", -10, $vid);
+      break;
+    case 'pgsql':
+      // TODO
+      break;
+  }
+
+  return $ret; 
 }

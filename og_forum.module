@@ -11,7 +11,6 @@
  * TODO:
  * - Support for multiple forums per group
  * - Support for both public and private forums
- * - UI improvements
  */
 
 /**
@@ -22,6 +21,35 @@ function og_forum_help($section) {
     case 'admin/modules#description':
       return t('Ties forums to organic groups.');
   }
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function og_forum_menu($may_cache) {
+  $items = array();
+
+  if ($may_cache) {
+    $items[] = array(
+      'path' => 'og_forum',
+      'callback' => 'og_forum_page',
+      'type' => MENU_CALLBACK,
+      'access' => user_access('access content'),
+    );
+  }
+
+  return $items;
+}
+
+/**
+ * Menu callback; allows us to set group context prior to
+ * loading a forum
+ */
+function og_forum_page($forum) {
+  $gid = $_GET['edit']['og_groups'][0];
+  $group = node_load($gid);
+  og_set_group_context($group);
+  return forum_page($forum);
 }
 
 /**
@@ -101,13 +129,15 @@ function og_forum_db_rewrite_sql($query, $primary_table = 'n', $primary_field = 
  */
 function og_forum_nodeapi($node, $op, $teaser = NULL) {
   switch ($op) {
-    case 'create':
-      if (arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum' && !isset($_GET['edit']['og_groups'][0])) {
-        return FALSE;
+    case 'prepare':
+      if (arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum') {
+        if (!isset($_GET['edit']['og_groups'][0])) {
+          return FALSE;
+        }
       }
       break;
     case 'insert':
-      if ($node->type == 'og') {
+      if (og_is_group_type($node->type)) {
         $edit = array('name' => $node->title, 'vid' => _forum_get_vid());
         $status = taxonomy_save_term($edit);
         $containers = variable_get('forum_containers', array());
@@ -123,7 +153,8 @@ function og_forum_nodeapi($node, $op, $teaser = NULL) {
       }
       break;
     case 'delete':
-      if ($node->type == 'og') {
+      // Delete existing terms for this og
+      if (og_is_group_type($node->type)) {
         $result = db_query('SELECT tid FROM {og_term} WHERE nid = %d', $node->nid);
         while ($term = db_fetch_object($result)) {
           taxonomy_del_term($term->tid);
@@ -167,10 +198,10 @@ function og_forum_get_forum_container($group_id) {
 function og_forum_og_create_links($group) {
   $links = array();
 
-  // Get group's forum id
-  $forum_id  = og_forum_get_forum($group->nid);
-  if ($forum_id) {
-    $links[] = l(t('view forum'), "forum/$forum_id", array('title' => t('View forum discussions'), ), "edit[og_groups][]=$group->nid");
+  // Get group's forum
+  $forum  = og_forum_get_forum($group->nid);
+  if ($forum) {
+    $links[] = l(t('view forum'), "og_forum/$forum/$group->nid", array('title' => t('View forum discussions.')), "edit[og_groups][]=$group->nid");
   }
 
   return $links;
@@ -198,6 +229,16 @@ function og_forum_retroactively_apply() {
  * Implementation of hook_form_alter().
  */
 function og_forum_form_alter($form_id, &$form) {
+  // Auto-select group's forum when adding/editing a forum topic
+  if ($form_id == 'forum_node_form') {
+    $group = og_get_group_context();
+    $term = og_forum_get_forum();
+    if ($group->nid) {
+      $vid =  _forum_get_vid();
+      $form['taxonomy'][$vid]['#default_value'] = $term;
+    }
+  }
+
   // Dependency checker
   if ($form_id == 'system_modules' && !$_POST) {
     og_forum_system_module_validate($form);
