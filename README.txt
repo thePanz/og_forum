@@ -22,3 +22,9 @@ KNOWN ISSUES:
 - NOT COMPATIBLE with regular 'everyone can see' style forums. choose one or the other for your site.
 
 Original author: Károly Négyesi
+
+Special thanks to:
+Evan Leeson of Catalyst Creative for sponsorship of 4.7 port and 
+improvements.
+Gavin Mogan for http://drupal.org/node/63379 which was a huge help in 
+porting the module.
