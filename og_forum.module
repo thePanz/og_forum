@@ -201,7 +201,7 @@ function og_forum_og_create_links($group) {
   // Get group's forum
   $forum  = og_forum_get_forum($group->nid);
   if ($forum) {
-    $links[] = l(t('view forum'), "og_forum/$forum/$group->nid", array('title' => t('View forum discussions.')), "edit[og_groups][]=$group->nid");
+    $links[] = l(t('group forum'), "og_forum/$forum/$group->nid", array('title' => t('View group forum discussions.')), "edit[og_groups][]=$group->nid");
   }
 
   return $links;
