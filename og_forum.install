@@ -39,8 +39,8 @@ function og_forum_update_1() {
   switch ($GLOBALS['db_type']) {
     case 'mysql':
     case 'mysqli':
-      db_query("UPDATE {system} SET weight = %d WHERE name = '%s'", 2, 'og_forum');
-      db_query("UPDATE {vocabulary} SET weight = %d WHERE vid = %d", -10, $vid);
+      $ret[] = update_sql("UPDATE {system} SET weight = 2 WHERE name = 'og_forum'");
+      $ret[] = update_sql("UPDATE {vocabulary} SET weight = -10 WHERE vid = $vid");
       break;
     case 'pgsql':
       // TODO
