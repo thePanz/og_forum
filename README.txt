@@ -12,10 +12,6 @@ C) When viewing groups, only forum discussions for that group are
 The og_term table could be useful for other applications of tying 
 groups to taxonomy as well.
 
-Note: Requires Taxonomy rewrite patch (see http://drupal.org/node/16452 for 
-background info) on 4.6 (this patch already exists in 4.7).
-Apply taxonomy.patch to the taxonomy module.
-
 KNOWN ISSUES:
 - when viewing the forum page, the create forum link can break you out of the forum theme since it does not have og info on querystring
 - the next/previous topic links can take you outside the current forum?
