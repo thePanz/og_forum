@@ -47,5 +47,6 @@ function og_forum_update_1() {
       break;
   }
 
-  return $ret; 
+  return $ret;
 }
+
