@@ -291,7 +291,7 @@ function og_forum_form_alter($form_id, &$form) {
       og_set_group_context($group);
       $vid = _forum_get_vid();
       $old_form = $form['taxonomy'][$vid];
-      foreach ($form['taxonomy'] as $key) {
+      foreach ($form['taxonomy'] as $key => $value) {
         if (substr($key, 0, 1) != '#') {
           unset($form['taxonomy'][$key]);
         }
