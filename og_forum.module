@@ -325,10 +325,10 @@ function og_forum_manage($group) {
     foreach ($tree as $term) {
       if(in_array($term->tid, $og_terms)) {
         if (in_array($term->tid, variable_get('forum_containers', array()))) {
-          $rows[] = array(_taxonomy_depth($term->depth) .' '. check_plain($term->name), l(t('add forum'), "og_forum/manage/add/$group->nid/$term->tid"));
+          $rows[] = array(str_repeat(' -- ', $term->depth) .' '. check_plain($term->name), l(t('add forum'), "og_forum/manage/add/$group->nid/$term->tid"));
         }
         else {
-          $rows[] = array(_taxonomy_depth($term->depth) .' '. check_plain($term->name), l(t('edit forum'), "og_forum/manage/edit/$group->nid/$term->tid"));
+          $rows[] = array(str_repeat(' -- ', $term->depth) .' '. check_plain($term->name), l(t('edit forum'), "og_forum/manage/edit/$group->nid/$term->tid"));
         }
       }
     }
