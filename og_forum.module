@@ -276,7 +276,7 @@ function og_forum_retroactively_apply() {
       $counter++;
     }
   }
-  drupal_set_message(t('@num groups had forums created', array('@num' => $counter)));
+  drupal_set_message(t('!num groups had forums created', array('!num' => $counter)));
 }
 
 /**
