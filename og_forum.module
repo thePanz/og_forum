@@ -393,8 +393,8 @@ function og_forum_form_forum($edit, $gid = 0, $tid = 0) {
 }
 
 /**
-  * Validate group id and term id values
-  */
+ * Validate group id and term id values
+ */
 function og_forum_form_validate($form_id, $form_values) {
   global $user;
 
