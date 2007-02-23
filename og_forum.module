@@ -254,7 +254,7 @@ function og_forum_og_create_links($group) {
     $links[] = l(t('group forums'), "og_forum/$forum/$group->nid", array('title' => t('View group forum discussions.')), "edit[og_groups][]=$group->nid");
     // Add forum creation link for the group managers
     if (og_forum_is_admin($group)) {
-      $links[] = l(t('manage group forums'), 'og_forum/manage/' . $group->nid, array('title' => t("Lets you create, edit, and delete group forums.")));
+      $links[] = l(t('manage group forums'), 'og_forum/manage/' . $group->nid, array('title' => t('Lets you create, edit, and delete group forums.')));
     }
   }
 
@@ -276,7 +276,7 @@ function og_forum_retroactively_apply() {
       $counter++;
     }
   }
-  drupal_set_message(t('%num groups had forums created', array('%num' => $counter)));
+  drupal_set_message(t('@num groups had forums created', array('@num' => $counter)));
 }
 
 /**
@@ -317,7 +317,7 @@ function og_forum_manage($group) {
   og_set_group_context($group);
   // set a nice breadcrumb
   _og_forum_manage_breadcrumb($group);
-  $content = '<p>' . t('This page shows the forums associated to the') . ' ' . theme('placeholder', $group->title) . ' ' . t('group.') . ' </p>';
+  $content = '<p>'. t('This page shows the forums associated with the %group group.', array('%group' => $group->title)) .'</p>';
   $og_terms = _og_forum_ogterms($group);
   $header = array(t('Name'), t('Operations'));
   $tree = taxonomy_get_tree(_forum_get_vid());
@@ -340,19 +340,19 @@ function og_forum_manage($group) {
 /**
  * Render forum creation form
  */
-function og_forum_form_forum($edit, $gid = 0, $tid = 0) {
+function og_forum_form_forum($edit = array(), $gid = 0, $tid = 0) {
   og_set_theme($gid);
   $group = node_load($gid);
   og_set_group_context($group);
   _og_forum_manage_breadcrumb($group);
   // Handle a delete operation.
   if ($_POST['op'] == t('Delete') || $_POST['edit']['confirm']) {
-    return _og_forum_confirm_delete($edit['tid'], $gid);
+    return drupal_get_form('og_forum_confirm_delete', $edit['tid'], $gid);
   }
-  return drupal_get_form('og_forum_form', $edit);
+  return drupal_get_form('og_forum_form', $edit, $gid, $tid);
 }
 
-function og_forum_form($edit = array()) {
+function og_forum_form($edit = array(), $gid = 0, $tid = 0) {
   $form['name'] = array('#type' => 'textfield',
     '#title' => t('Forum name'),
     '#default_value' => $edit['name'],
@@ -402,17 +402,17 @@ function og_forum_form_validate($form_id, $form_values) {
   global $user;
 
   $error = true;
-  if(is_numeric($form_values['group_id'])) {
+  if (is_numeric($form_values['group_id'])) {
     $group = node_load($form_values['group_id']);
 
     // check that the user is the manager
-    if($group && og_forum_is_admin($group) && (in_array($form_values['parent'], _og_forum_ogterms($group)) || $form_values['tid'])) {
+    if ($group && og_forum_is_admin($group) && (in_array($form_values['parent'], _og_forum_ogterms($group)) || $form_values['tid'])) {
       $error = false;
     }
   }
 
   // stop insertion if we found invalid values
-  if($error) {
+  if ($error) {
     form_set_error('name', t('Internal error processing your data. Please contact website administrators.'));
   }
 }
@@ -433,13 +433,13 @@ function og_forum_form_submit($form_id, $form_values) {
         $containers[] = $form_values['tid'];
         variable_set('forum_containers', $containers);
       }
-      drupal_set_message(t('Created new %type %term.', array('%term' => theme('placeholder', $form_values['name']), '%type' => $type)));
+      drupal_set_message(t('Created new !type %term.', array('%term' => $form_values['name'], '!type' => $type)));
 
       // store relation group-forum on the db
       db_query('INSERT INTO {og_term} (tid, nid) VALUES (%d, %d)', $form_values['tid'], $form_values['group_id']);
       break;
     case SAVED_UPDATED:
-      drupal_set_message(t('The %type %term has been updated.', array('%term' => theme('placeholder', $form_values['name']), '%type' => $type)));
+      drupal_set_message(t('The !type %term has been updated.', array('%term' => $form_values['name'], '!type' => $type)));
       break;
   }
   return 'og_forum/manage/'.$form_values['group_id'];
@@ -450,14 +450,13 @@ function og_forum_form_submit($form_id, $form_values) {
  *
  * @param $tid ID of the term to be deleted
  */
-function _og_forum_confirm_delete($tid, $group_id) {
+function og_forum_confirm_delete($tid, $group_id) {
   $term = taxonomy_get_term($tid);
-
   $form['tid'] = array('#type' => 'value', '#value' => $tid);
   $form['name'] = array('#type' => 'value', '#value' => $term->name);
   $form['group_id'] = array('#type' => 'value', '#value' => $group_id);
-
-  return confirm_form('og_forum_confirm_delete', $form, t('Are you sure you want to delete the forum %name?', array('%name' => theme('placeholder', $term->name))), 'admin/forums', t('Deleting a forum or container will delete all sub-forums and associated posts as well. This action cannot be undone.'), t('Delete'), t('Cancel'));
+  $form = confirm_form($form, t('Are you sure you want to delete the forum %name?', array('%name' => $term->name)), 'admin/forums', t('Deleting a forum or container will delete all sub-forums and associated posts as well. This action cannot be undone.'), t('Delete'), t('Cancel'));
+  return $form;
 }
 
 /**
@@ -465,8 +464,8 @@ function _og_forum_confirm_delete($tid, $group_id) {
  */
 function og_forum_confirm_delete_submit($form_id, $form_values) {
   taxonomy_del_term($form_values['tid']);
-  drupal_set_message(t('The forum %term and all sub-forums and associated posts have been deleted.', array('%term' => theme('placeholder', $form_values['name']))));
-  watchdog('content', t('forum: deleted %term and all its sub-forums and associated posts.', array('%term' => theme('placeholder', $form_values['name']))));
+  drupal_set_message(t('The forum %term and all sub-forums and associated posts have been deleted.', array('%term' => $form_values['name'])));
+  watchdog('content', t('forum: deleted %term and all its sub-forums and associated posts.', array('%term' => $form_values['name'])));
   db_query('DELETE FROM {og_term} WHERE tid = %d', $form_values['tid']);
   return 'og_forum/manage/' . $form_values['group_id'];
 }
