@@ -349,7 +349,10 @@ function og_forum_form_forum($edit, $gid = 0, $tid = 0) {
   if ($_POST['op'] == t('Delete') || $_POST['edit']['confirm']) {
     return _og_forum_confirm_delete($edit['tid'], $gid);
   }
+  return drupal_get_form('og_forum_form', $edit);
+}
 
+function og_forum_form($edit = array()) {
   $form['name'] = array('#type' => 'textfield',
     '#title' => t('Forum name'),
     '#default_value' => $edit['name'],
@@ -389,7 +392,7 @@ function og_forum_form_forum($edit, $gid = 0, $tid = 0) {
     $form['delete'] = array('#type' => 'submit', '#value' => t('Delete'));
     $form['tid'] = array('#type' => 'hidden', '#value' => $edit['tid']);
   }
-  return drupal_get_form('og_forum_form_forum', $form, 'og_forum_form');
+  return $form;
 }
 
 /**
