@@ -20,9 +20,7 @@ function og_forum_help($section) {
  * Implementation of hook_menu().
  */
 function og_forum_menu($may_cache) {
-  global $user;
   $items = array();
-
   if ($may_cache) {
     $items[] = array(
       'path' => 'admin/og/og_forum',
@@ -31,7 +29,6 @@ function og_forum_menu($may_cache) {
       'callback' => 'drupal_get_form',
       'callback arguments' => array('og_forum_admin_settings'),
       'access' => user_access('administer site configuration'),
-      'type' => MENU_NORMAL_ITEM,
     );
     $items[] = array(
       'path' => 'og_forum',
@@ -139,7 +136,7 @@ function og_forum_admin_settings() {
  * Custom submit handler for group update
  */
 function og_forum_settings_submit($form_id, $form_values) {
-  if ($_POST['op'] == t('Update old groups')) {
+  if ($form_values['op'] == t('Update old groups')) {
     og_forum_retroactively_apply();
   }
 }
@@ -181,7 +178,6 @@ function og_forum_db_rewrite_sql($query, $primary_table = 'n', $primary_field = 
     else {
       return NULL;
     }
-
   }
 }
 
@@ -248,16 +244,15 @@ function og_forum_og_create_links($group) {
   global $user;
   $links = array();
 
-  // Get group's forum
+  // Get group's forums
   $forum  = og_forum_get_forum_container($group->nid);
   if ($forum) {
-    $links[] = l(t('group forums'), "og_forum/$forum/$group->nid", array('title' => t('View group forum discussions.')), "edit[og_groups][]=$group->nid");
+    $links[] = l(t('Group forums'), "og_forum/$forum/$group->nid", array('title' => t('View group forum discussions.')), "edit[og_groups][]=$group->nid");
     // Add forum creation link for the group managers
     if (og_forum_is_admin($group)) {
-      $links[] = l(t('manage group forums'), 'og_forum/manage/' . $group->nid, array('title' => t('Lets you create, edit, and delete group forums.')));
+      $links[] = l(t('Manage group forums'), 'og_forum/manage/' . $group->nid, array('title' => t("Lets you create, edit, and delete group's forums.")));
     }
   }
-
   return $links;
 }
 
@@ -323,7 +318,7 @@ function og_forum_manage($group) {
   $tree = taxonomy_get_tree(_forum_get_vid());
   if ($tree) {
     foreach ($tree as $term) {
-      if(in_array($term->tid, $og_terms)) {
+      if (in_array($term->tid, $og_terms)) {
         if (in_array($term->tid, variable_get('forum_containers', array()))) {
           $rows[] = array(str_repeat(' -- ', $term->depth) .' '. check_plain($term->name), l(t('add forum'), "og_forum/manage/add/$group->nid/$term->tid"));
         }
@@ -338,7 +333,7 @@ function og_forum_manage($group) {
 }
 
 /**
- * Render forum creation form
+ * Select the right form to display
  */
 function og_forum_form_forum($edit = array(), $gid = 0, $tid = 0) {
   og_set_theme($gid);
@@ -352,6 +347,9 @@ function og_forum_form_forum($edit = array(), $gid = 0, $tid = 0) {
   return drupal_get_form('og_forum_form', $edit, $gid, $tid);
 }
 
+/**
+ * Render forum creation form
+ */
 function og_forum_form($edit = array(), $gid = 0, $tid = 0) {
   $form['name'] = array('#type' => 'textfield',
     '#title' => t('Forum name'),
@@ -365,7 +363,7 @@ function og_forum_form($edit = array(), $gid = 0, $tid = 0) {
     '#default_value' => $edit['description'],
     '#description' => t('The forum description can give users more information about the discussion topics it contains.'),
   );
-  if(arg(2) == 'add') {
+  if (arg(2) == 'add') {
     $form['parent'] = array(
       '#type' => 'hidden',
       '#value' => $tid,
@@ -400,7 +398,6 @@ function og_forum_form($edit = array(), $gid = 0, $tid = 0) {
  */
 function og_forum_form_validate($form_id, $form_values) {
   global $user;
-
   $error = true;
   if (is_numeric($form_values['group_id'])) {
     $group = node_load($form_values['group_id']);
@@ -421,7 +418,6 @@ function og_forum_form_validate($form_id, $form_values) {
  * Store created/updated forum on the db
  */
 function og_forum_form_submit($form_id, $form_values) {
-
   $container = false;
   $type = t('forum');
 
@@ -442,7 +438,7 @@ function og_forum_form_submit($form_id, $form_values) {
       drupal_set_message(t('The !type %term has been updated.', array('%term' => $form_values['name'], '!type' => $type)));
       break;
   }
-  return 'og_forum/manage/'.$form_values['group_id'];
+  return 'og_forum/manage/'. $form_values['group_id'];
 }
 
 /**
@@ -477,15 +473,15 @@ function _og_forum_manage_breadcrumb($group) {
   $breadcrumb = array();
   $breadcrumb[] = array(
     'path' => 'forum',
-    'title' => $vocabulary->name
+    'title' => $vocabulary->name,
   );
   $breadcrumb[] = array(
     'path' => 'node/'. $group->nid,
-    'title' => $group->title
+    'title' => $group->title,
   );
   $breadcrumb[] = array(
     'path' => 'og_forum/manage/'. $group->nid,
-    'title' => t('Manage') . ' ' . $group->title . ' ' . t('forums')
+    'title' => t('Manage') .' '. $group->title .' '. t('forums'),
   );
   menu_set_location($breadcrumb);
 }
@@ -497,7 +493,7 @@ function _og_forum_ogterms($group) {
   $result = db_query('SELECT * FROM {og_term} WHERE nid = %d', $group->nid);
 
   $og_terms = array();
-  while($term = db_fetch_object($result)) {
+  while ($term = db_fetch_object($result)) {
     $og_terms[] = $term->tid;
   }
   return $og_terms;
