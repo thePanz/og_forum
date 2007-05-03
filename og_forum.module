@@ -82,7 +82,6 @@ function og_forum_menu($may_cache) {
       }
     }
   }
-
   return $items;
 }
 
