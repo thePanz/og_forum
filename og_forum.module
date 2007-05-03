@@ -94,6 +94,7 @@ function og_forum_is_admin($group) {
   $cntall = db_num_rows($result);
   $cntpending = 0;
   while ($row = db_fetch_object($result)) {
+    if ($user->uid == 1) return TRUE;
     if ($row->uid == $user->uid) {
       if ($row->is_admin > 0) return TRUE;
     }
