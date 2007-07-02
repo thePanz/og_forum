@@ -3,4 +3,5 @@ name = OG forum
 description = Creates forums within organic groups.
 dependencies = og forum
 package = Organic groups
+project = "og_forum"
 
