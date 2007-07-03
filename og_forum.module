@@ -38,8 +38,9 @@ function og_forum_menu($may_cache) {
   );
   $items[] = array(
     'path' => 'forum',
+    'title' => t('Forums'),
     'callback' => 'og_forum_page',
-    'type' => MENU_CALLBACK,
+    'type' => MENU_SUGGESTED_ITEM,
     'access' => user_access('access content'),
   );
   $items[] = array(
@@ -166,14 +167,14 @@ function theme_og_forum_display($forums, $topics, $parents, $tid, $sortby, $foru
     $output .= '<ul>';
     if (user_access('create forum topics') && !in_array($tid, variable_get('forum_containers', array())) && ($tid != 0)) {
       og_forum_set_og_group_context_from_tid($tid);
-      /*$gid = og_forum_gid_from_tid($tid);
+      $gid = og_forum_gid_from_tid($tid);
       //group forum link with group selected
-      if(!empty($gid)){
+      if(!empty($gid) && !module_exists('og_user_roles')) {
         $output .= '<li>'. l(t('Post new forum topic.'), "node/add/forum/$tid", array() , "gids[]=$gid") .'</li>';
       }
-      else {//normal forum*/
+      else {//normal forum
         $output .= '<li>'. l(t('Post new forum topic.'), "node/add/forum/$tid") .'</li>';
-      //}
+      }
     }
     else if (user_access('create forum topics')) {
       $output .= '<li>'. t('Select a forum below.') .'</li>';
