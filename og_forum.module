@@ -544,10 +544,10 @@ function og_forum_form_alter($form_id, &$form) {
       if (!user_access('administer forums')) {
         unset ($form['taxonomy'][$vid]['#default_value']);
         //unset ($form['taxonomy'][$vid]['#type']);
-        $form['taxonomy'][$vid]['#type'] = 'fieldset';
-        $form['taxonomy'][$vid]['#title'] = 'Forum context';//comment this line out to hide the drop down; i couldn't get [#type] = 'hidden' to work
-        $form['taxonomy'][$vid]['#collapsible'] = TRUE;
-        $form['taxonomy'][$vid]['#collapsed'] = TRUE;
+        $form['taxonomy']['#type'] = 'fieldset';
+        $form['taxonomy']['#title'] = 'Forum context';//comment this line out to hide the drop down; i couldn't get [#type] = 'hidden' to work
+        $form['taxonomy']['#collapsible'] = TRUE;
+        $form['taxonomy']['#collapsed'] = TRUE;
         $form['taxonomy'][$vid]['#value'] = $term;
         $form['taxonomy'][$vid]['#description'] = 'When inside a group forum, changing this value has no effect.';
       }
