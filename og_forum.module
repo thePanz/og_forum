@@ -169,7 +169,7 @@ function theme_og_forum_display($forums, $topics, $parents, $tid, $sortby, $foru
       og_forum_set_og_group_context_from_tid($tid);
       $gid = og_forum_gid_from_tid($tid);
       //group forum link with group selected
-      if(!empty($gid) && !module_exists('og_user_roles')) {
+      if(!empty($gid)) {
         $output .= '<li>'. l(t('Post new forum topic.'), "node/add/forum/$tid", array() , "gids[]=$gid") .'</li>';
       }
       else {//normal forum
@@ -354,6 +354,16 @@ function og_forum_db_rewrite_sql($query, $primary_table = 'n', $primary_field = 
   global $user;
   $restrict = FALSE;
   $restrict2 = FALSE;
+  if (module_exists('og_user_roles')) {
+    $gidX = $_GET['gids'];
+    $typeX = $_GET['type'];
+    $tidX = $_GET['tid'];
+  }
+  else {
+    $gidX = NULL;
+    $typeX = NULL;
+    $tidX = NULL;
+  }
   if ($primary_field == 'tid') {
     // Only do this on forum nodes
     if (((arg(0) == 'forum') || (arg(0) == 'og_forum') || (db_result(db_query('SELECT type FROM {node} WHERE nid = %d', arg(1))) == 'forum')) && ($user->uid != 1)) {
@@ -364,6 +374,13 @@ function og_forum_db_rewrite_sql($query, $primary_table = 'n', $primary_field = 
       $restrict2 = TRUE;
     }
     elseif ((arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum') && ($user->uid != 1)) {
+      $restrict = TRUE;
+    }
+    elseif ((arg(0) == 'node' && arg(1) == 'ognodeadd' && $typeX == 'forum' && $tidX != NULL) && ($user->uid != 1)) {//for og_user_roles compatibility
+      $restrict = TRUE;
+      $restrict2 = TRUE;
+    }
+    elseif ((arg(0) == 'node' && arg(1) == 'ognodeadd' && $typeX == 'forum') && ($user->uid != 1)) {//for og_user_roles compatibility
       $restrict = TRUE;
     }
     // If on a forum node, prevent display of all forums; only the ones for this organic group
@@ -413,9 +430,25 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
       }
       break;
     case 'prepare':
+      if (module_exists('og_user_roles')) {
+        $gidX = $_GET['gids'];
+        $typeX = $_GET['type'];
+        $tidX = $_GET['tid'];
+      }
+      else {
+        $gidX = NULL;
+        $typeX = NULL;
+        $tidX = NULL;
+      }
       if (arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum' && arg(3)) {
         if (!og_get_group_context()) {
           og_forum_set_og_group_context_from_tid(arg(3));
+          //return FALSE;
+        }
+      }
+      elseif (arg(0) == 'node' && arg(1) == 'ognodeadd' && $typeX == 'forum' && $tidX != NULL) {//for og_user_roles compatibility
+        if (!og_get_group_context()) {
+          og_forum_set_og_group_context_from_tid($tidX);
           //return FALSE;
         }
       }
@@ -540,6 +573,10 @@ function og_forum_form_alter($form_id, &$form) {
       }
       elseif (arg(2)=='edit'){
         $term = $form['taxonomy'][$vid]['#default_value'][0];
+      }
+      elseif (arg(1) == 'ognodeadd') {//for og_user_roles compatibility
+        $term = $_GET['tid'];
+        $form['taxonomy'][$vid]['#default_value'] = array($term);
       }
       if (!user_access('administer forums')) {
         unset ($form['taxonomy'][$vid]['#default_value']);
