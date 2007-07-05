@@ -30,12 +30,12 @@ function og_forum_help($section) {
  */
 function og_forum_menu($may_cache) {
   $items = array();
-  $items[] = array(
+  /*$items[] = array(
     'path' => 'og_forum',
     'callback' => 'og_forum_page',
     'type' => MENU_CALLBACK,
     'access' => user_access('access content'),
-  );
+  );*/
   $items[] = array(
     'path' => 'forum',
     'title' => t('Forums'),
@@ -155,7 +155,7 @@ function theme_og_forum_display($forums, $topics, $parents, $tid, $sortby, $foru
         $title = $p->name;
       }
       else {
-        $breadcrumb[] = array('path' => 'og_forum/'. $p->tid, 'title' => $p->name);
+        $breadcrumb[] = array('path' => 'forum/'. $p->tid, 'title' => $p->name);
       }
     }
   }
@@ -215,7 +215,7 @@ function theme_og_forum_list($forums, $parents, $tid) {
     foreach ($forums as $forum) {
       if ($forum->container) {
         $description  = '<div style="margin-left: '. ($forum->depth * 30) ."px;\">\n";
-        $description .= ' <div class="name">'. l($forum->name, "og_forum/$forum->tid") ."</div>\n";
+        $description .= ' <div class="name">'. l($forum->name, "forum/$forum->tid") ."</div>\n";
         if ($forum->description) {
           $description .= ' <div class="description">'. filter_xss_admin($forum->description) ."</div>\n";
         }
@@ -229,14 +229,14 @@ function theme_og_forum_list($forums, $parents, $tid) {
           $new_topics = 0;
         }
         $description  = '<div style="margin-left: '. ($forum->depth * 30) ."px;\">\n";
-        $description .= ' <div class="name">'. l($forum->name, "og_forum/$forum->tid") ."</div>\n";
+        $description .= ' <div class="name">'. l($forum->name, "forum/$forum->tid") ."</div>\n";
         if ($forum->description) {
           $description .= ' <div class="description">'. filter_xss_admin($forum->description) ."</div>\n";
         }
         $description .= "</div>\n";
         $rows[] = array(
           array('data' => $description, 'class' => 'forum'),
-          array('data' => $forum->num_topics . ($new_topics ? '<br />'. l(format_plural($new_topics, '1 new', '@count new'), "og_forum/$forum->tid", NULL, NULL, 'new') : ''), 'class' => 'topics'),
+          array('data' => $forum->num_topics . ($new_topics ? '<br />'. l(format_plural($new_topics, '1 new', '@count new'), "forum/$forum->tid", NULL, NULL, 'new') : ''), 'class' => 'topics'),
           array('data' => $forum->num_posts, 'class' => 'posts'),
           array('data' => _forum_format($forum->last_post), 'class' => 'last-reply'));
       }
@@ -261,7 +261,7 @@ function theme_og_forum_topic_list($tid, $topics, $sortby, $forum_per_page) {
         $rows[] = array(
           array('data' => theme('forum_icon', $topic->new, $topic->num_comments, $topic->comment_mode, $topic->sticky), 'class' => 'icon'),
           array('data' => check_plain($topic->title), 'class' => 'title'),
-          array('data' => l(t('This topic has been moved'), "og_forum/$topic->tid"), 'colspan' => '3')
+          array('data' => l(t('This topic has been moved'), "forum/$topic->tid"), 'colspan' => '3')
         );
       }
       else {
@@ -495,7 +495,7 @@ function og_forum_og_create_links($group) {
   // Get group's forum
   $forum  = og_forum_get_forum_container($group->nid);
   if ($forum) {
-    $links[] = l(t('Group forums'), "og_forum/$forum", array('title' => t('View group forum discussions.')));
+    $links[] = l(t('Group forums'), "forum/$forum", array('title' => t('View group forum discussions.')));
   // Add forum creation link for the group managers
     if (og_forum_is_admin($group)) {
       $links[] = l(t('Manage group forums'), 'og_forum/manage/' . $group->nid, array('title' => t('Let you create, edit, delete group\'s forums.')));
@@ -763,7 +763,7 @@ function og_forum_confirm_delete_submit($form_id, $form_values) {
 function _og_forum_manage_breadcrumb($group) {
   $breadcrumb = array();
   $breadcrumb[] = array(
-    'path' => 'og_forum',
+    'path' => 'forum',
     'title' => $vocabulary->name
   );
   $breadcrumb[] = array(
