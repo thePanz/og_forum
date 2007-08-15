@@ -12,6 +12,9 @@ C) When viewing groups, only forum discussions for that group are
 The og_term table could be useful for other applications of tying
 groups to taxonomy as well.
 
+NOTE: This module overrides the theme functions from Drupal core's
+      forum module.
+
 Original author: Károly Négyesi
 
 Special thanks to:
