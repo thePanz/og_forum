@@ -1,5 +1,9 @@
 <?php
-// $Id$
+/** 
+ * $Id$
+ * @package OG_Forum
+ * @category NeighborForge
+ */
 
 /**
  * Implementation of hook_install().

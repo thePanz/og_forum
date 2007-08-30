@@ -1,9 +1,10 @@
 <?php
-// $Id$
-
 /**
  * @file
  * Creates a forum per organic group and restricts viewing forum nodes by group membership.
+ * @version $Id$
+ * @package OG_Forum
+ * @category NeighborForge
  */
 
 /**
@@ -621,6 +622,15 @@ function og_forum_form_alter($form_id, &$form) {
   // Auto-select group's forum when adding/editing a forum topic
   if ($form_id == 'forum_node_form') {
     $group = og_get_group_context();
+    //if we couldn't get the context from og, don't give up. Try getting it from the nid if we have one.
+    if (empty($group)) {
+      if (arg(0) == 'node' && arg(2) == 'edit' && is_numeric(arg(1))) {
+        $sql = "SELECT tid FROM {forum} WHERE nid = %d";
+        $result = db_fetch_object(db_query($sql, arg(1)));
+        og_forum_set_og_group_context_from_tid($result->tid);
+        $group = og_get_group_context();
+      }
+    }
     $GID = $group->nid;
     if ($GID) {
       $results = db_query('SELECT ot.tid, th.parent FROM {og_term} ot LEFT JOIN {term_hierarchy} th ON ot.tid = th.tid WHERE nid = %d ORDER BY tid ASC', $GID);

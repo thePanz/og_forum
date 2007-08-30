@@ -1,4 +1,8 @@
-$Id$
+/**
+ * $Id$
+ * @package OG_Forum
+ * @category NeighborForge
+ */
 
 This module does the following:
 
