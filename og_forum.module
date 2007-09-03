@@ -529,6 +529,18 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
         }
       }
       break;
+    case 'update':
+      //Make sure if the group's title has changed, the title of it's root forum is updated as well.
+      if (og_is_group_type($node->type)) {
+        $tid = db_result(db_query('SELECT tid FROM {og_term} WHERE nid = %d', $node->nid));
+        if ($tid) {
+          $term = taxonomy_get_term($tid);
+          $term->name = $node->title;
+          $term = (array)$term;
+          taxonomy_save_term($term);    //will have any other modules update the term's URL aliases
+        }
+      }
+      break;
     case 'delete':
       // Delete existing terms for this og
       if (og_is_group_type($node->type)) {
