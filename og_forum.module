@@ -557,6 +557,27 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
       if ($page && $node->og_forum_nid) {
         og_set_group_context(node_load($node->og_forum_nid));
       }
+      if (is_numeric($node->tid)) {
+        $tid = $node->tid;
+      }
+      $parents = taxonomy_get_parents_all($tid);
+      // Breadcrumb navigation:
+      $breadcrumb = array();
+      $breadcrumb[] = array('path' => "og", 'title' => t('Groups'));
+      $breadcrumb[] = array('path' => "node/$group_node->nid", 'title' => $group_node->title);
+      if ($tid) {
+        $breadcrumb[] = array('path' => 'forum', 'title' => $title);
+      }
+      if ($parents) {
+        $parents = array_reverse($parents);
+        foreach ($parents as $p) {
+          $breadcrumb[] = array('path' => 'forum/' .$p->tid, 'title' => $p->name);          
+        }        
+      }
+      $breadcrumb[] = array('path' => "node/$node->nid", 'title' => $node->title);
+      drupal_set_title(check_plain($node->title));
+      $breadcrumb[] = array('path' => $_GET['q']);
+      menu_set_location($breadcrumb);
       break;
   }
 } // function og_forum_nodeapi()
@@ -670,7 +691,7 @@ function og_forum_form_alter($form_id, &$form) {
           $form['taxonomy'][$vid]['#default_value'] = array($term);
         }
         else {
-          $term = key($first);
+          $term = key($all_results);
           $form['taxonomy'][$vid]['#default_value'] = array($term);
         }
       }
