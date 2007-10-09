@@ -562,22 +562,25 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
       }
       $parents = taxonomy_get_parents_all($tid);
       // Breadcrumb navigation:
-      $breadcrumb = array();
-      $breadcrumb[] = array('path' => "og", 'title' => t('Groups'));
-      $breadcrumb[] = array('path' => "node/$group_node->nid", 'title' => $group_node->title);
-      if ($tid) {
-        $breadcrumb[] = array('path' => 'forum', 'title' => $title);
+      global $_menu;
+      if (isset($_menu)) {
+        $breadcrumb = array();
+        $breadcrumb[] = array('path' => "og", 'title' => t('Groups'));
+        $breadcrumb[] = array('path' => "node/$group_node->nid", 'title' => $group_node->title);
+        if ($tid) {
+          $breadcrumb[] = array('path' => 'forum', 'title' => $title);
+        }
+        if ($parents) {
+          $parents = array_reverse($parents);
+          foreach ($parents as $p) {
+            $breadcrumb[] = array('path' => 'forum/' .$p->tid, 'title' => $p->name);          
+          }        
+        }
+        $breadcrumb[] = array('path' => "node/$node->nid", 'title' => $node->title);
+        $breadcrumb[] = array('path' => $_GET['q']);
+        menu_set_location($breadcrumb);
       }
-      if ($parents) {
-        $parents = array_reverse($parents);
-        foreach ($parents as $p) {
-          $breadcrumb[] = array('path' => 'forum/' .$p->tid, 'title' => $p->name);          
-        }        
-      }
-      $breadcrumb[] = array('path' => "node/$node->nid", 'title' => $node->title);
       drupal_set_title(check_plain($node->title));
-      $breadcrumb[] = array('path' => $_GET['q']);
-      menu_set_location($breadcrumb);
       break;
   }
 } // function og_forum_nodeapi()
