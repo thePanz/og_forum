@@ -144,6 +144,10 @@ function theme_og_forum_display($forums, $topics, $parents, $tid, $sortby, $foru
   $title = $vocabulary->name;
   // Breadcrumb navigation:
   $breadcrumb = array();
+  if ($gid !== NULL) {
+    $breadcrumb[] = array('path' => "og", 'title' => t('Groups'));
+    $breadcrumb[] = array('path' => "node/". $node->og_groups[0], 'title' => $node->og_groups_names[0]);
+  }
   if ($tid) {
     $breadcrumb[] = array('path' => 'forum', 'title' => $title);
   }
@@ -432,9 +436,9 @@ function og_forum_db_rewrite_sql($query, $primary_table = 'n', $primary_field = 
       //Esentially, instead of sequentially restricting our selection based on whether the forum is in an organic group,
       //we find which organic group forums we don't want to show and remove them from the site-wide forum list.
       //What remains are all regular forums, plus those the user is subscribed to in each group and which is_active is set to 1.  
-      $return['where'] = 't.tid NOT IN (SELECT x.tid FROM (SELECT ogt.tid FROM {og_term} ogt INNER JOIN {og_uid} ogu ON ogt.nid = ogu.nid AND ogu.uid != ' .$user->uid. ') x
-      WHERE x.tid NOT IN (SELECT ogt.tid FROM {og_term} ogt INNER JOIN {og_uid} ogu ON ogt.nid = ogu.nid AND ogu.uid = ' .$user->uid. ')) 
-      AND t.tid NOT IN (SELECT ogt.tid FROM {og_term} ogt INNER JOIN {og_uid} ogu ON ogt.nid = ogu.nid AND ogu.uid = ' .$user->uid. ' WHERE ogu.is_active = 0)';
+      $return['where'] = 't.tid NOT IN (SELECT x.tid FROM (SELECT distinct(ogt.tid) FROM {og_term} ogt INNER JOIN {og_uid} ogu ON ogt.nid = ogu.nid AND ogu.uid != ' .$user->uid. ') x
+      WHERE x.tid NOT IN (SELECT distinct(ogt.tid) FROM {og_term} ogt INNER JOIN {og_uid} ogu ON ogt.nid = ogu.nid AND ogu.uid = ' .$user->uid. ')) 
+      AND t.tid NOT IN (SELECT distinct(ogt.tid) FROM {og_term} ogt INNER JOIN {og_uid} ogu ON ogt.nid = ogu.nid AND ogu.uid = ' .$user->uid. ' WHERE ogu.is_active = 0)';
       if ($restrict2) {
         $og_nid = og_forum_gid_from_tid(arg(3));
         if ($og_nid && !$og_vocab) {
@@ -443,8 +447,8 @@ function og_forum_db_rewrite_sql($query, $primary_table = 'n', $primary_field = 
           //Need to put the join in here since we need to match ogt.nid
           $return['join'] = "LEFT JOIN {og_term} ogt ON " .$primary_table. ".tid = ogt.tid";
           $return['where'] = "t.tid NOT IN (SELECT x.tid FROM
-            (SELECT ogt.tid FROM {og_term} ogt INNER JOIN {og_uid} ogu ON ogt.nid = ogu.nid AND ogu.uid != ' .$user->uid. ') x
-            WHERE x.tid NOT IN (SELECT ogt.tid FROM {og_term} ogt INNER JOIN {og_uid} ogu ON ogt.nid = ogu.nid AND ogu.uid = ' .$user->uid. ')) 
+            (SELECT distinct(ogt.tid) FROM {og_term} ogt INNER JOIN {og_uid} ogu ON ogt.nid = ogu.nid AND ogu.uid != ' .$user->uid. ') x
+            WHERE x.tid NOT IN (SELECT distinct(ogt.tid) FROM {og_term} ogt INNER JOIN {og_uid} ogu ON ogt.nid = ogu.nid AND ogu.uid = ' .$user->uid. ')) 
             AND ogt.nid = $og_nid";
         }
       }
@@ -453,7 +457,7 @@ function og_forum_db_rewrite_sql($query, $primary_table = 'n', $primary_field = 
     }
     elseif ($restrict){
       //anonymous users should be able to at least see the site-wide (public) forums
-      $return['where'] = 't.tid NOT IN (SELECT ogt.tid FROM {og_term} ogt)';
+      $return['where'] = 't.tid NOT IN (SELECT DISTINCT ogt.tid FROM {og_term} ogt)';
       //we shouldn't need to modify anything further if they request a specific node from a forum that is in
       //a group forum as the above 'where' should weed it out; i.e. don't need 'join' in a $restrict2 'if'
       $return['distinct'] = TRUE;
@@ -552,36 +556,41 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
       }
       break;
     case 'view':
+      // Don't do anything when handling teasers
+      if ($teaser) {
+        break;
+      }
       // If we're viewing a forum post in a group forum, set that
       // group as the context.
-      if ($page && $node->og_forum_nid) {
-        og_set_group_context(node_load($node->og_forum_nid));
-      }
-      if (is_numeric($node->tid)) {
-        $tid = $node->tid;
-      }
-      $parents = taxonomy_get_parents_all($tid);
-      // Breadcrumb navigation:
-      global $_menu;
-      if (isset($_menu)) {
-        $breadcrumb = array();
-        $breadcrumb[] = array('path' => "og", 'title' => t('Groups'));
-        $breadcrumb[] = array('path' => "node/$group_node->nid", 'title' => $group_node->title);
-        if ($tid) {
-          $breadcrumb[] = array('path' => 'forum', 'title' => $title);
+      if ($page && $node->og_groups) {
+        og_set_group_context(node_load($node->og_groups[0]));
+        
+        if (is_numeric($node->tid)) {
+          $tid = $node->tid;
         }
-        if ($parents) {
-          $parents = array_reverse($parents);
-          foreach ($parents as $p) {
-            $breadcrumb[] = array('path' => 'forum/' .$p->tid, 'title' => $p->name);          
-          }        
+        $parents = taxonomy_get_parents_all($tid);
+        // Breadcrumb navigation:
+        global $_menu;
+        if (isset($_menu)) {
+          $breadcrumb = array();
+          $breadcrumb[] = array('path' => "og", 'title' => t('Groups'));
+          $breadcrumb[] = array('path' => "node/". $node->og_groups[0], 'title' => $node->og_groups_names[0]);
+          if ($tid) {
+            $breadcrumb[] = array('path' => 'forum', 'title' => $title);
+          }
+          if ($parents) {
+            $parents = array_reverse($parents);
+            foreach ($parents as $p) {
+              $breadcrumb[] = array('path' => 'forum/' .$p->tid, 'title' => $p->name);          
+            }        
+          }
+          $breadcrumb[] = array('path' => "node/$node->nid", 'title' => $node->title);
+          $breadcrumb[] = array('path' => $_GET['q']);
+          menu_set_location($breadcrumb);
         }
-        $breadcrumb[] = array('path' => "node/$node->nid", 'title' => $node->title);
-        $breadcrumb[] = array('path' => $_GET['q']);
-        menu_set_location($breadcrumb);
+        drupal_set_title(check_plain($node->title));
+        break;
       }
-      drupal_set_title(check_plain($node->title));
-      break;
   }
 } // function og_forum_nodeapi()
 
@@ -700,6 +709,7 @@ function og_forum_form_alter($form_id, &$form) {
       }
       if (!user_access('administer forums')) {
         foreach ($form['taxonomy'][$vid]['#options'] as $key => $the_rest) {
+          reset($the_rest->option);
           $option_key = key($the_rest->option);
           if (!array_key_exists($option_key, $all_results)) {
             unset($form['taxonomy'][$vid]['#options'][$key]);
@@ -736,6 +746,7 @@ function og_forum_form_alter($form_id, &$form) {
       }
       if (!user_access('administer forums') && $cut) {
         foreach ($form['taxonomy'][$vid]['#options'] as $key => $the_rest) {
+          reset($the_rest->option);
           $option_key = key($the_rest->option);
           if (array_key_exists($option_key, $all_results)) {
             unset($form['taxonomy'][$vid]['#options'][$key]);
