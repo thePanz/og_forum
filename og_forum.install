@@ -16,6 +16,7 @@ function og_forum_install() {
         CREATE TABLE IF NOT EXISTS {og_term} (
           tid int(10) unsigned NOT NULL default '0',
           nid int(10) unsigned NOT NULL default '0',
+          public int(1) unsigned NOT NULL default '0',
           PRIMARY KEY  (tid,nid)
         ) /*!40100 DEFAULT CHARACTER SET utf8 */
       ");
@@ -54,3 +55,41 @@ function og_forum_update_1() {
   return $ret;
 }
 
+/**
+ * Implementation of hook_update
+ * 
+ * Here we add a column to allow for tracking of public and private forums
+ */
+function og_forum_update_2() {
+  $ret = array();
+
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      $ret[] = update_sql("ALTER TABLE {og_term} ADD COLUMN public int(1) unsigned NOT NULL default '0'");
+      break;
+    case 'pgsql':
+      // TODO
+      break;
+  }
+
+  return $ret;
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function og_forum_uninstall() {
+  $vardel = FALSE;
+  $query1 = db_query('DROP TABLE {og_term}');
+  if(variable_del('forum_default_name') && variable_del('forum_default_container_yn') && variable_del('forum_default_container') && variable_del('forum_allow_public')
+  && variable_del('forum_all_public') && variable_del('forum_auto_public') && variable_del('forum_limit')) {
+    $vardel = TRUE;
+  }
+  if ($query1 && $vardel) {
+    drupal_set_message('The OG Forum module was uninstalled successfully.');
+  }
+  else {
+    drupal_set_message('There was an error removing the OG Forum database tables or variables.', 'error');
+  }
+}
