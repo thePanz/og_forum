@@ -772,7 +772,6 @@ function og_forum_db_rewrite_sql($query, $primary_table = 'n', $primary_field = 
       return $return;
     }
     elseif ($restrict && !$all_public){
-      drupal_set_message('here we are 2');
       //anonymous users should be able to at least see the site-wide and other public forums
       $return['where'] = 't.tid NOT IN (SELECT DISTINCT ogt.tid FROM {og_term} ogt WHERE public < 2)';
       //we shouldn't need to modify anything further if they request a specific node from a forum that is in
