@@ -50,8 +50,8 @@ function og_forum_menu($may_cache) {
     );
     $items[] = array(
       'path' => 'admin/og/og_forum',
-      'title' => t('Organic Groups Forums'),
-      'description' => t('Configure Organic Groups Forums'),
+      'title' => t('Organic groups forums'),
+      'description' => t('Configure forums for organic groups'),
       'callback' => 'drupal_get_form',
       'callback arguments' => array('og_forum_admin_settings'),
       'access' => user_access('administer site configuration'),
@@ -381,7 +381,9 @@ function theme_og_forum_display($forums, $topics, $parents, $tid, $sortby, $foru
     $output .= theme('og_forum_list', $forums, $parents, $tid);
     if ($tid && !in_array($tid, variable_get('forum_containers', array()))) {
       $output .= theme('og_forum_topic_list', $tid, $topics, $sortby, $forum_per_page, $gid);
-      drupal_add_feed(url('taxonomy/term/' .$tid. '/0/feed'), 'RSS - ' .$title);
+      if (og_forum_is_public($tid)) {
+        drupal_add_feed(url('taxonomy/term/' .$tid. '/0/feed'), 'RSS - ' .$title);
+      }
     }
     $output .= '</div>';
   }
@@ -834,17 +836,110 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
           db_query('INSERT INTO {og_term} (tid, nid) VALUES (%d, %d)', $edit['tid'], $node->nid);
         }
         else {
+          //Added Functionality to allow for the creation of multiple forums/containers
+          //when a new group is created. To use, change the default forum name
+          //in OG_Forum administation to a semicolon seperated list
+          //e.g. Forum1;Forum2;Forum
+          //Use C for new container, P for the previous container, R to return to the root container
+          //e.g. Forum1;C;Container2;Forum2;C;Container3;Forum3;R;Forum4 would give the structure
+          //  Group Container
+          //  Forum1
+          //  Container2
+          //  ..Forum2
+          //  ..Container3
+          //  ....Forum3
+          //  Forum4
+          // NOTE: Weights are used to keep the ordering correct
+          // 2-19-2008 Josh Cohen
+          // Updated 3-13-2008 - Added ability to use descriptions. Follow the container or 
+          // forum number by a comma, then decription. e.g. Forum3, This is a description;Forum4
+          //
+          //Setup Main Container
           $edit = array('name' => $node->title, 'vid' => _forum_get_vid());
           $status = taxonomy_save_term($edit);
           $containers = variable_get('forum_containers', array());
           $containers[] = $edit['tid'];
           variable_set('forum_containers', $containers);
           db_query('INSERT INTO {og_term} (tid, nid) VALUES (%d, %d)', $edit['tid'], $node->nid);
-          $current_default_name = variable_get('forum_default_name', 'General discussion');
-          $edit['name'] = $current_default_name;
-          $edit['parent'] = array($edit['tid']);
-          unset($edit['tid']);
-          $status = taxonomy_save_term($edit);
+          ///Start Multiple Forum Code Change 
+          // 2-19-2008 Josh Cohen
+          $curr_container = $edit['tid'];
+          $root_container = $curr_container;
+          unset($edit['tid']); //taxonomy_save_term will give us new tids
+          $default_forum_names = variable_get('forum_default_name', 'General discussion');
+          $forum_names = explode(";",$default_forum_names); //return default forum names as an array
+          $is_container = 0;
+          $c_order = array($root_container); //To keep track of the container sequence
+          $weight_indx = -10;
+          foreach ($forum_names as $fvalue){
+            switch(strtoupper($fvalue)){
+            case('C'): //Create New Container
+              $is_container = 1;
+              break;
+            case('P'): //Go to previous container
+              //Delete current container
+              if (end($c_order) != $root_container){
+                array_pop($c_order);
+              }
+              //Set current container
+              $curr_container = end($c_order);
+              $is_container = 0;
+              break;
+            case('R'): //Go to the root container
+              unset($c_order);
+              $c_order = array($root_container);
+              $curr_container = $root_container;
+              $is_container = 0;
+              break;
+            default:
+              if ($is_container == '1'){
+                //Add New Container
+                $forum_names = explode(",",$fvalue); //Break out Name and Description
+                if (count($forum_names) == 2){
+                  $fname = $forum_names[0];
+                  $fdesc = $forum_names[1];
+                }else{
+                  $fname = $forum_names[0];
+                  unset($fdesc);
+                }                
+                $edit = array('name' => $fname, 'vid' => _forum_get_vid(), 'parent' => $curr_container, 'weight' => $weight_indx, 'description' => $fdesc);
+                $status = taxonomy_save_term($edit);
+                $containers = variable_get('forum_containers', array());
+                $containers[] = $edit['tid'];
+                variable_set('forum_containers', $containers);
+                $curr_container = $edit['tid'];
+                $c_order[] = $edit['tid']; //Add the new container to our index
+                unset($edit['tid']);
+                unset($edit['parent']);
+                $is_container = 0;                
+                $weight_indx = $weight_indx + 1;                
+              }
+              else {
+               //Add New Forum
+               $forum_names = explode(",",$fvalue); //Break out Name and Description
+                if (count($forum_names) == 2){
+                  $fname = $forum_names[0];
+                  $fdesc = $forum_names[1];
+                }else{
+                  $fname = $forum_names[0];
+                  unset($fdesc);
+                }       
+               $edit['name'] = $fname;
+               $edit['description'] = $fdesc;
+               $edit['parent'] = $curr_container;
+               $edit['weight'] = $weight_indx;               
+               $status = taxonomy_save_term($edit);
+               unset($edit['tid']); //Clear term so Taxonomy_save_term will generate a new term on next iteration
+               $is_container = 0;
+               $weight_indx = $weight_indx + 1;
+              }
+              break;
+            } //End Switch
+          }            
+          unset($forum_names); //clean up variables
+          unset($c_order);
+          //End Multiple Forum Code Change 
+          //2-19-2008 Josh Cohen         
         }
       }
       elseif ($node->type == 'forum') {//if the node is marked public, check the 'puclicity' settings and act accordingly
@@ -1053,6 +1148,7 @@ function og_forum_retroactively_apply() {
   drupal_set_message(t('%num groups had forums created', array('%num' => $counter)));
 } // function og_forum_retroactively_apply()
 
+
 /**
  * Implementation of hook_form_alter().
  */
@@ -1102,6 +1198,9 @@ function og_forum_form_alter($form_id, &$form) {
       }
       if (!user_access('administer forums')) {
         foreach ($form['taxonomy'][$vid]['#options'] as $key => $the_rest) {
+          if ($key == '') {
+            continue;
+          }
           reset($the_rest->option);
           $option_key = key($the_rest->option);
           if (!array_key_exists($option_key, $all_results)) {
@@ -1110,10 +1209,34 @@ function og_forum_form_alter($form_id, &$form) {
           elseif (array_key_exists($option_key, $all_results) && $all_results[$option_key] == 0) {
             unset($form['taxonomy'][$vid]['#options'][$key]);
           }
+        }//check to see if the audience is required or optional. if optional, don't do the following two lines
+        if (variable_get('og_audience_required', FALSE) == 1) {
+          if (count($form['og_nodeapi']['visible']['og_groups']['#default_value'])) {
+            drupal_add_js(drupal_get_path('module', 'og_forum'). '/og_forum.js');
+            $options = $form['og_nodeapi']['visible']['og_groups']['#options'];
+            $groups = $form['og_nodeapi']['visible']['og_groups']['#default_value'];
+            foreach ($groups as $key => $value) {
+              $groups[$key] = (string)$value;
+            }
+            unset($form['og_nodeapi']['visible']['og_groups']);
+            foreach ($groups as $gid) {
+              $titles[] = $options[$gid];
+              $item_value = implode(', ', $titles);
+            }
+            $form['og_nodeapi']['visible']['og_groups_visible'] = array('#type' => 'item', '#title' => t('Audience'), '#value' => $item_value);
+            $assoc_groups = drupal_map_assoc($groups);
+            // this hidden element persists audience values during a Preview cycle. avoids errors on Preview.
+            $form['og_nodeapi']['invisible']['og_groups_hidden'] = array('#type' => 'hidden', '#value' => serialize($assoc_groups), '#attributes' => array('class' => 'og-audience-forum'));
+            // this 'value' element persists the audience value during submit process
+            $form['og_nodeapi']['invisible']['og_groups'] = array('#type' => 'value', '#value' => $assoc_groups);
+            if ($form['og_nodeapi']['visible']['og_public']['#default_value'] == 1) {
+              $form['og_nodeapi']['visible']['og_public']['#default_value'] = 1;
+            }
+            else {
+              $form['og_nodeapi']['visible']['og_public']['#default_value'] = 0;
+            }
+          }
         }
-        $form['og_nodeapi']['visible']['og_groups']['#value'] = $form['og_nodeapi']['visible']['og_groups']['#default_value'];
-        unset($form['og_nodeapi']['visible']['og_groups']['#default_value']);
-        //$form['og_nodeapi']['visible']['#access'] = 0;
       }
     }
     else {
@@ -1139,6 +1262,9 @@ function og_forum_form_alter($form_id, &$form) {
       }
       if (!user_access('administer forums') && $cut) {
         foreach ($form['taxonomy'][$vid]['#options'] as $key => $the_rest) {
+          if ($key == '') {
+            continue;
+          }
           reset($the_rest->option);
           $option_key = key($the_rest->option);
           if (array_key_exists($option_key, $all_results)) {
@@ -1467,6 +1593,7 @@ function _og_forum_ogterms($group) {
  */
 function og_forum_forum_limit_reached($nid) {
   $forum_limit = variable_get('forum_limit', 0);
+  if ($forum_limit == 0) return FALSE;
   $sql = "SELECT DISTINCT tid FROM {og_term} WHERE nid = %d";
   $result = db_query($sql, $nid);
   $num = db_num_rows($result);

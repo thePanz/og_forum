@@ -1,8 +1,4 @@
 ; $Id$
-;/**
-; * @package OG_Forum
-; * @category NeighborForge
-; */
 name = OG forum
 description = Creates forums within organic groups.
 dependencies = og forum

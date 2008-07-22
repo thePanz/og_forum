@@ -22,53 +22,8 @@ which are detailed below.
 --REQUIREMENTS--
   This module requires both the OG module and the Forum module from Core to be installed.
   
-  For proper function of the module, you will unfortunately have to patch OG. Here's why:
+  We no longer need the OG patch as I figured another way to do the same thing. But see this:
   http://drupal.org/node/177626
-  
-  Due to the changing nature of OG, I didn't want to provide a patch with this module as it
-  will quickly be outdated. Also, the change can be applied to many versions of OG without
-  difficulty. The change is small, and is as follows...
-  
-  Add this code:
-  
-  if ($required && $form_id == 'forum_node_form' && module_exists('og_forum')) {
-    $simple = TRUE;
-  }
-  
-  to the function called "og_form_add_og_audience". I won't repeat the entire function here,
-  but the surrounding code as found in the above-mentioned issue is:
-  
-  // determine value of audience multi-select
-  if (count($options) == 1 && $required) {
-    $gids = array_keys($options);
-    $gid = $gids[0];
-    $groups = array($gid);
-    // also show read only mode if user has 1 option and we are in required mode
-    $simple = TRUE;
-  }
-  elseif ($gids) {
-   // populate field from the querystring if sent
-   $groups = $gids;
-   if (!user_access('administer nodes')) {
-     // filter out any groups where author is not a member. we cannot rely on fapi to do this when in simple mode.
-     $groups = array_intersect($gids, array_keys($options));
-   }
-   /***********OG_FORUM NEEDS THE NEXT IF CLAUSE*********************************/
-   if ($required && $form_id == 'forum_node_form' && module_exists('og_forum')) {
-     $simple = TRUE;
-   }
-   /***********END OG_FORUM CHANGES**********************************************/
-  }
-  elseif ($node->nid || $node->og_groups) {
-    $groups = $node->og_groups;
-  }
-  else {
-    $groups = array();
-  }
-
-  WHAT THIS DOES:
-    This change to OG allows group forum nodes to be properly added to the og_ancestry
-    table which ensures that the group context is correct for all forum nodes.
     
 --INSTALL--
   Before you post an issue to the queue with installation problems, be sure you did all
