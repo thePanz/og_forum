@@ -1079,6 +1079,12 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
         drupal_set_title(check_plain($node->title));
         break;
       }
+   case 'submit':
+     $gid = og_forum_gid_from_tid($node->tid);
+     $node->og_groups = array();
+     $node->og_groups[$gid] = $gid; 
+     $node->og_groups = array_filter($node->og_groups);
+     $node->og_groups = array_keys($node->og_groups);  
   }
 } // function og_forum_nodeapi()
 
@@ -1155,10 +1161,10 @@ function og_forum_retroactively_apply() {
 function og_forum_form_alter($form_id, &$form) {
   // Auto-select group's forum when adding/editing a forum topic
   if ($form_id == 'forum_node_form') {
-    $group = og_get_group_context();
+    $group = og_get_group_context(); 
     //if we couldn't get the context from og, don't give up. Try getting it from the nid if we have one.
-    if (empty($group)) {
-      if (arg(0) == 'node' && arg(2) == 'edit' && is_numeric(arg(1))) {
+    if (empty($group)) { 
+      if (arg(0) == 'node' && arg(2) == 'edit' && is_numeric(arg(1))) { 
         $sql = "SELECT tid FROM {forum} WHERE nid = %d";
         $result = db_fetch_object(db_query($sql, arg(1)));
         og_forum_set_og_group_context_from_tid($result->tid);
@@ -1177,14 +1183,14 @@ function og_forum_form_alter($form_id, &$form) {
         $term = arg(3);
         $form['taxonomy'][$vid]['#default_value'] = array($term);
       }
-      elseif (arg(2) == 'edit') {
+      elseif (arg(2) == 'edit') { 
         $term = $form['taxonomy'][$vid]['#default_value'][0];
       }
       elseif (arg(1) == 'ognodeadd') {//for og_user_roles compatibility
         $term = $_GET['tid'];
         $form['taxonomy'][$vid]['#default_value'] = array($term);
       }
-      elseif (arg(1) == 'add' && !arg(3)) {
+      elseif (arg(1) == 'add' && !arg(3)) { 
         $first = reset($all_results);
         if ($first == 0) {
           $next = next($all_results);
@@ -1196,9 +1202,9 @@ function og_forum_form_alter($form_id, &$form) {
           $form['taxonomy'][$vid]['#default_value'] = array($term);
         }
       }
-      if (!user_access('administer forums')) {
-        foreach ($form['taxonomy'][$vid]['#options'] as $key => $the_rest) {
-          if ($key == '') {
+      if (!user_access('administer forums')) { 
+        foreach ($form['taxonomy'][$vid]['#options'] as $key => $the_rest) { 
+          if ($key === '') {  
             continue;
           }
           reset($the_rest->option);
@@ -1206,10 +1212,7 @@ function og_forum_form_alter($form_id, &$form) {
           if (!array_key_exists($option_key, $all_results)) {
             unset($form['taxonomy'][$vid]['#options'][$key]);
           }
-          elseif (array_key_exists($option_key, $all_results) && $all_results[$option_key] == 0) {
-            unset($form['taxonomy'][$vid]['#options'][$key]);
-          }
-        }//check to see if the audience is required or optional. if optional, don't do the following two lines
+        } //check to see if the audience is required or optional. if optional, don't do the following two lines
         if (variable_get('og_audience_required', FALSE) == 1) {
           if (count($form['og_nodeapi']['visible']['og_groups']['#default_value'])) {
             drupal_add_js(drupal_get_path('module', 'og_forum'). '/og_forum.js');
@@ -1239,19 +1242,19 @@ function og_forum_form_alter($form_id, &$form) {
         }
       }
     }
-    else {
+    else { 
       $results = db_query('SELECT ot.tid, th.parent FROM {og_term} ot LEFT JOIN {term_hierarchy} th ON ot.tid = th.tid ORDER BY tid ASC');
       while ($result = db_fetch_object($results)) {
         $all_results[$result->tid] = $result->parent;
       }
-      $vid =  _forum_get_vid();
+      $vid =  _forum_get_vid(); 
       $cut = FALSE;
-      if (arg(1) == 'add' && arg(3)) {
+      if (arg(1) == 'add' && arg(3)) { 
         $cut = TRUE;
         $term = arg(3);
         $form['taxonomy'][$vid]['#default_value'] = array($term);
       }
-      elseif (arg(2) == 'edit') {
+      elseif (arg(2) == 'edit') { 
         $cut = TRUE;
         $term = $form['taxonomy'][$vid]['#default_value'][0];
       }
@@ -1260,7 +1263,7 @@ function og_forum_form_alter($form_id, &$form) {
         $term = $_GET['tid'];
         $form['taxonomy'][$vid]['#default_value'] = array($term);
       }
-      if (!user_access('administer forums') && $cut) {
+      if (!user_access('administer forums') && $cut) { 
         foreach ($form['taxonomy'][$vid]['#options'] as $key => $the_rest) {
           if ($key == '') {
             continue;
@@ -1272,6 +1275,9 @@ function og_forum_form_alter($form_id, &$form) {
           }
         }
       }
+      $groups = $form['og_nodeapi']['visible']['og_groups']; 
+      $form['og_nodeapi']['invisible']['og_groups'] = array('#type' => 'value', '#value' => $groups);
+      unset($form['og_nodeapi']['visible']['og_groups']);
     }
     $form['taxonomy']['#collapsible'] = TRUE;
     $form['taxonomy']['#collapsed'] = TRUE;
