@@ -1080,11 +1080,13 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
         break;
       }
    case 'submit':
-     $gid = og_forum_gid_from_tid($node->tid);
-     $node->og_groups = array();
-     $node->og_groups[$gid] = $gid; 
-     $node->og_groups = array_filter($node->og_groups);
-     $node->og_groups = array_keys($node->og_groups);  
+     if ($node->type == 'forum') {
+       $gid = og_forum_gid_from_tid($node->tid);
+       $node->og_groups = array();
+       $node->og_groups[$gid] = $gid; 
+       $node->og_groups = array_filter($node->og_groups);
+       $node->og_groups = array_keys($node->og_groups);  
+     }
   }
 } // function og_forum_nodeapi()
 
