@@ -990,6 +990,11 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
           $term = taxonomy_get_term($tid);
           $term->name = $node->title;
           $term = (array)$term;
+          $parents = taxonomy_get_parents($tid);
+          foreach ($parents as $parent) {
+            $pid[] = $parent->tid;
+          }         
+          $term['parent'] = $pid;
           taxonomy_save_term($term);    //will have any other modules update the term's URL aliases
         }
       }
@@ -1187,6 +1192,9 @@ function og_forum_form_alter($form_id, &$form) {
       }
       elseif (arg(2) == 'edit') { 
         $term = $form['taxonomy'][$vid]['#default_value'][0];
+        $groups = $form['og_nodeapi']['visible']['og_groups']; 
+        $form['og_nodeapi']['invisible']['og_groups'] = array('#type' => 'value', '#value' => $groups);
+        unset($form['og_nodeapi']['visible']['og_groups']);
       }
       elseif (arg(1) == 'ognodeadd') {//for og_user_roles compatibility
         $term = $_GET['tid'];
