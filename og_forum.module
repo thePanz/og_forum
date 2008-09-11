@@ -4,7 +4,6 @@
  * Creates a forum per organic group and restricts viewing forum nodes by group membership.
  * @version $Id$
  * @package OG_Forum
- * @category NeighborForge
  */
 
 /**
@@ -18,8 +17,8 @@ define('PUBLIC_BY_GROUP_OWNER', 3);
 /**
  * Implementation of hook_help().
  */
-function og_forum_help($section) {
-  switch ($section) {
+function og_forum_help($path, $arg) {
+  switch ($path) {
     case 'admin/modules#description':
       return t('Ties forums to organic groups.');
   }
@@ -38,50 +37,48 @@ function og_forum_perm() {
 /**
  * Implementation of hook_menu().
  */
-function og_forum_menu($may_cache) {
+function og_forum_menu() {
   $items = array();
-  if ($may_cache) {
-    $items[] = array(
-      'path' => 'forum',
+  //if ($may_cache) {
+    $items['forum'] = array(
       'title' => t('Forums'),
-      'callback' => 'og_forum_page',
+      'page callback' => 'og_forum_page',
+      'access arguments' => array('access content'),
       'type' => MENU_SUGGESTED_ITEM,
-      'access' => user_access('access content'),
     );
-    $items[] = array(
-      'path' => 'admin/og/og_forum',
+    $items['admin/og/og_forum'] = array(
       'title' => t('Organic groups forums'),
       'description' => t('Configure forums for organic groups'),
-      'callback' => 'drupal_get_form',
-      'callback arguments' => array('og_forum_admin_settings'),
-      'access' => user_access('administer site configuration'),
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('og_forum_admin_settings'),
+      'access arguments' => array('administer site configuration'),
     );
-  }
-  else {
+  //}
+  //else {
     // we expect the group nid as 1st argument
     if (is_numeric(arg(2))) {
       // load forum's group
       $group = node_load(arg(2));
       if ($group) {
-        $items[] = array(
-          'title' => t('Manage group\'s forum'),
-          'path' => 'og_forum/manage',
-          'callback' => 'og_forum_manage',
-          'callback arguments' => array($group),
+        $items['og_forum/manage/%group'] = array(
+          'title' => t('Manage groups forum'),
+          'page callback' => 'og_forum_manage',
+          'page arguments' => array($group),
+          'access callback' =>  'og_forum_access_privileges_2',
+          'access arguments' => array($group),
           'type' => MENU_CALLBACK,
-          'access' => (og_forum_is_admin($group) && user_access('admin own group forums')) || user_access('administer forums'),
         );
       }
     }
     elseif (is_numeric(arg(3)) && is_numeric(arg(4))) {
       if (arg(2) == 'add') {
         $group = node_load(arg(3));
-        $items[] = array(
-          'path' => 'og_forum/manage/add',
+        $items['og_forum/manage/add/%gid/%tid'] = array(
           'title' => t('Add forum'),
-          'callback' => 'og_forum_form_main',
-          'callback arguments' => array('add', array('group_id' => arg(3), 'parent' => arg(4))),
-          'access' => ((og_forum_is_admin($group) && user_access('admin own group forums')) && !og_forum_forum_limit_reached(arg(3))) || user_access('administer forums'),
+          'page callback' => 'og_forum_form_main',
+          'page arguments' => array('add', array('group_id' => arg(3), 'parent' => arg(4))),
+          'access callback' =>  'og_forum_access_privileges_3',
+          'access arguments' => array($group,arg(3)),
           'type' => MENU_CALLBACK
         );
       }
@@ -92,64 +89,90 @@ function og_forum_menu($may_cache) {
         $parent = array_pop($parents);
         $term->parent = $parent->tid;
         $term->group_id = arg(3);
-        $items[] = array(
-          'path' => 'og_forum/manage/edit',
+        $items['og_forum/manage/edit/%gid/%tid'] = array(
           'title' => t('Edit forum'),
-          'callback' => 'og_forum_form_main',
-          'callback arguments' => array('edit', (array)$term),
-          'access' => ((og_forum_is_admin($group) && user_access('admin own group forums')) || user_access('administer forums')),
+          'page callback' => 'og_forum_form_main',
+          'page arguments' => array('edit', (array)$term),
+          'access callback' =>  'og_forum_access_privileges_2',
+          'access arguments' => array($group),
           'type' => MENU_CALLBACK
         );
       }
       elseif (arg(2) == 'public') {
         $group = node_load(arg(3));
         $allow_public = variable_get('forum_allow_public', 0);
-        $items[] = array(
-          'path' => 'og_forum/manage/public',
+        $items['og_forum/manage/public/%gid/%tid'] = array(
           'title' => t('Make forum public'),
-          'callback' => 'og_forum_public',
-          'callback arguments' => array('group_id' => arg(3), 'tid' => arg(4)),
-          'access' => ((og_forum_is_admin($group) && user_access('admin own group forums') && $allow_public) || user_access('make forums public')),
+          'page callback' => 'og_forum_public',
+          'page arguments' => array('group_id' => arg(3), 'tid' => arg(4)),
+          'access callback' =>  'og_forum_access_privileges_1',
+          'access arguments' => array($group, $allow_public),
           'type' => MENU_CALLBACK
         );
       }
       elseif (arg(2) == 'private') {
         $group = node_load(arg(3));
         $allow_public = variable_get('forum_allow_public', 0);
-        $items[] = array(
-          'path' => 'og_forum/manage/private',
+        $items['og_forum/manage/private/%gid/%tid'] = array(
           'title' => t('Make forum private'),
-          'callback' => 'og_forum_private',
-          'callback arguments' => array('group_id' => arg(3), 'tid' => arg(4)),
-          'access' => ((og_forum_is_admin($group) && user_access('admin own group forums') && $allow_public) || user_access('make forums public')),
+          'page callback' => 'og_forum_private',
+          'page arguments' => array('group_id' => arg(3), 'tid' => arg(4)),
+          'access callback' =>  'og_forum_access_privileges_1',
+          'access arguments' => array($group, $allow_public),
           'type' => MENU_CALLBACK
         );
       }
       elseif (arg(2) == 'reset') {
         $group = node_load(arg(3));
         $allow_public = variable_get('forum_allow_public', 0);
-        $items[] = array(
-          'path' => 'og_forum/manage/reset',
+        $items['og_forum/manage/reset/%gid/%tid'] = array(
           'title' => t('Reset forum publicity'),
-          'callback' => 'og_forum_reset',
-          'callback arguments' => array('group_id' => arg(3), 'tid' => arg(4)),
-          'access' => ((og_forum_is_admin($group) && user_access('admin own group forums') && $allow_public) || user_access('make forums public')),
+          'page callback' => 'og_forum_reset',
+          'page arguments' => array('group_id' => arg(3), 'tid' => arg(4)),
+          'access callback' =>  'og_forum_access_privileges_1',
+          'access arguments' => array($group, $allow_public),
           'type' => MENU_CALLBACK
         );
       }
     }
-  }
+  //}
   return $items;
 } // function og_forum_menu()
+
+function og_forum_access_privileges_1 ($group, $allow_public) {
+  return ((og_forum_is_admin($group) && user_access('admin own group forums') && $allow_public) || user_access('make forums public'));	
+}	
+
+function og_forum_access_privileges_2 ($group) {
+  return ((og_forum_is_admin($group) && user_access('admin own group forums')) || user_access('administer forums'));
+}
+
+function og_forum_access_privileges_3 ($group, $arg3) {
+  return ((og_forum_is_admin($group) && user_access('admin own group forums') && !og_forum_forum_limit_reached($arg3)) || user_access('administer forums'));
+} // took off a ) bracket after the end of user_access('admin own group forums') , is this right ?? 		
+
+function og_forum_theme() {
+  return array(
+    'og_forum_display' => array(
+      'arguments' => array('formus' => NULL,'topics' => NULL,'parents' => NULL,'tid' => NULL,'sortby' => NULL,'forum_per_page' => NULL),
+    ),
+    'og_forum_list' => array(
+      'arguments' => array('formus' => NULL,'parents' => NULL,'tid' => NULL),
+    ),
+    'og_forum_topic_list' => array(
+      'arguments' => array('tid' => NULL, 'topics' => NULL, 'sortby' => NULL,'forum_per_page' => NULL, 'gid' => NULL),
+    ),
+  );
+} 
 
 /**
  * Menu callback; allows us to set group context prior to loading a forum
  */
-function og_forum_page($tid = 0) {
+function og_forum_page($tid = 0) {  
   global $user;
-  if ($tid != 0) {
+  if ($tid != 0) { 
     og_forum_set_og_group_context_from_tid($tid);
-    $gid = og_forum_gid_from_tid($tid);
+    $gid = og_forum_gid_from_tid($tid); 
     if ($gid) {
       if (!array_key_exists($gid, $user->og_groups) && ($user->uid != 1) && !(user_access('adminster forums')) && !og_forum_is_public($tid)) {
         return drupal_access_denied();
@@ -160,24 +183,24 @@ function og_forum_page($tid = 0) {
     $tid = og_get_group_context();
   }
   //The rest is copied from forum_page with a modified theme call
-  if (module_exists('taxonomy') && module_exists('comment')) {
-    $forum_per_page = variable_get('forum_per_page', 25);
-    $sortby = variable_get('forum_order', 1);
-    if (og_forum_is_public($tid)) {
+  if (module_exists('taxonomy') && module_exists('comment')) {  
+    $forum_per_page = variable_get('forum_per_page', 25); 
+    $sortby = variable_get('forum_order', 1); 
+    if (og_forum_is_public($tid)) { 
       $forums = og_forum_get_forums($tid);
     }
     else {
-      $forums = forum_get_forums($tid);
-    }
-    $parents = taxonomy_get_parents_all($tid);
-    if ($tid && !in_array($tid, variable_get('forum_containers', array()))) {
+      $forums = forum_get_forums($tid); 
+    } 
+    $parents = taxonomy_get_parents_all($tid);  
+    if ($tid && !in_array($tid, variable_get('forum_containers', array()))) { 
       if (og_forum_is_public($tid)) {
         $topics = og_forum_get_topics($tid, $sortby, $forum_per_page);
       }
-      else {
+      else { 
         $topics = forum_get_topics($tid, $sortby, $forum_per_page);
       }
-    }
+    } 
     return theme('og_forum_display', $forums, $topics, $parents, $tid, $sortby, $forum_per_page);
   }
   else {
@@ -326,19 +349,19 @@ function og_forum_get_topics($tid, $sortby, $forum_per_page) {
  *
  * @ingroup themeable
  */
-function theme_og_forum_display($forums, $topics, $parents, $tid, $sortby, $forum_per_page) {
+function theme_og_forum_display($forums, $topics, $parents, $tid, $sortby, $forum_per_page) { 
   global $user;
   // forum list, topics list, topic browser and 'add new topic' link
-  $vocabulary = taxonomy_get_vocabulary(variable_get('forum_nav_vocabulary', ''));
+  $vocabulary = taxonomy_vocabulary_load(variable_get('forum_nav_vocabulary', '')); 
   $title = $vocabulary->name;
   // Breadcrumb navigation:
-  $breadcrumb = array();
+  $breadcrumb[] = l(t('Home'), NULL);
   if ($gid !== NULL) {
-    $breadcrumb[] = array('path' => "og", 'title' => t('Groups'));
-    $breadcrumb[] = array('path' => "node/". $node->og_groups[0], 'title' => $node->og_groups_names[0]);
+  	$breadcrumb[] = l(t('Groups'), 'og');
+    $breadcrumb[] = l(t("@title", array('@title' => $node->og_groups_names[0])), 'node/'. $node->og_groups[0]);
   }
   if ($tid) {
-    $breadcrumb[] = array('path' => 'forum', 'title' => $title);
+    $breadcrumb[] = l(t("@title", array('@title' => $title)), 'forum');
   }
   if ($parents) {
     $parents = array_reverse($parents);
@@ -347,14 +370,13 @@ function theme_og_forum_display($forums, $topics, $parents, $tid, $sortby, $foru
         $title = $p->name;
       }
       else {
-        $breadcrumb[] = array('path' => 'forum/' .$p->tid, 'title' => $p->name);
+        $breadcrumb[] = l(t("@title", array('@title' => $p->name)), 'forum/' .$p->tid);
       }
     }
   }
   drupal_set_title(check_plain($title));
-  $breadcrumb[] = array('path' => $_GET['q']);
-  menu_set_location($breadcrumb);
-  if (count($forums) || count($parents)) {
+  drupal_set_breadcrumb($breadcrumb);  
+  if (count($forums) || count($parents)) { 
     $output  = '<div id="forum">';
     $output .= '<ul>';
     if (user_access('create forum topics') && !in_array($tid, variable_get('forum_containers', array())) && ($tid != 0)) {
@@ -362,13 +384,13 @@ function theme_og_forum_display($forums, $topics, $parents, $tid, $sortby, $foru
       $gid = og_forum_gid_from_tid($tid);
       //group forum link with group selected
       if (!empty($gid) && array_key_exists($gid, $user->og_groups)) {//make sure only group members are shown this link
-        $output .= '<li>' .l(t('Post new forum topic.'), "node/add/forum/$tid", array() , "gids[]=$gid"). '</li>';
+        $output .=  '<li>' .l(t('Post new forum topic.'), "node/add/forum/$tid", array('attributes' => array(), 'query' => 'gids[]='.$gid)) . '</li>';
       }
       elseif (empty($gid)) {//normal forum, not in group
         $output .= '<li>' .l(t('Post new forum topic.'), "node/add/forum/$tid"). '</li>';
       }
     }
-    elseif (user_access('create forum topics')) {
+    elseif (user_access('create forum topics')) { 
       $output .= '<li>' .t('Select a forum below.'). '</li>';
     }
     elseif ($user->uid) {
@@ -428,10 +450,10 @@ function theme_og_forum_list($forums, $parents, $tid) {
         }
         $description .= "</div>\n";
         $rows[] = array(
-          array('data' => $description, 'class' => 'forum'),
-          array('data' => $forum->num_topics .($new_topics ? '<br />' .l(format_plural($new_topics, '1 new', '@count new'), "forum/$forum->tid", NULL, NULL, 'new') : ''), 'class' => 'topics'),
+          array('data' => $description, 'class' => 'forum'),          
+          array('data' => $forum->num_topics .($new_topics ? '<br />' .l(format_plural($new_topics, '1 new', '@count new'), "forum/$forum->tid", array('attributes' => NULL, 'query' => NULL , 'fragment' => 'new')) : ''), 'class' => 'topics'),
           array('data' => $forum->num_posts, 'class' => 'posts'),
-          array('data' => _forum_format($forum->last_post), 'class' => 'last-reply'));
+          array('data' => og_forum_format($forum->last_post), 'class' => 'last-reply'));
       }
     }
     return theme('table', $header, $rows);
@@ -465,8 +487,8 @@ function theme_og_forum_topic_list($tid, $topics, $sortby, $forum_per_page, $gid
             array('data' => theme('forum_icon', $topic->new, $topic->num_comments, $topic->comment_mode, $topic->sticky) .' public', 'class' => 'icon public'),
             array('data' => l($topic->title, "node/$topic->nid"), 'class' => 'topic'),
             array('data' => $topic->num_comments. ($topic->new_replies ? '<br />' .l(format_plural($topic->new_replies, '1 new', '@count new'), "node/$topic->nid", NULL, NULL, 'new') : ''), 'class' => 'replies'),
-            array('data' => _forum_format($topic), 'class' => 'created'),
-            array('data' => _forum_format(isset($topic->last_reply) ? $topic->last_reply : NULL), 'class' => 'last-reply')
+            array('data' => og_forum_format($topic), 'class' => 'created'),
+            array('data' => og_forum_format(isset($topic->last_reply) ? $topic->last_reply : NULL), 'class' => 'last-reply')
           );
         }
         elseif (isset($public_post) && $public_post->is_public == 0 && !array_key_exists($gid, $user->og_groups)) {
@@ -474,8 +496,8 @@ function theme_og_forum_topic_list($tid, $topics, $sortby, $forum_per_page, $gid
             array('data' => theme('forum_icon', $topic->new, $topic->num_comments, $topic->comment_mode, $topic->sticky) .' private', 'class' => 'icon private'),
             array('data' => l($topic->title, "node/$topic->nid"), 'class' => 'topic'),
             array('data' => $topic->num_comments. ($topic->new_replies ? '<br />' .l(format_plural($topic->new_replies, '1 new', '@count new'), "node/$topic->nid", NULL, NULL, 'new') : ''), 'class' => 'replies'),
-            array('data' => _forum_format($topic), 'class' => 'created'),
-            array('data' => _forum_format(isset($topic->last_reply) ? $topic->last_reply : NULL), 'class' => 'last-reply')
+            array('data' => og_forum_format($topic), 'class' => 'created'),
+            array('data' => og_forum_format(isset($topic->last_reply) ? $topic->last_reply : NULL), 'class' => 'last-reply')
           );
         }
         elseif (isset($public_post)) {//if the user is a group member, hide the public/private indicators
@@ -483,8 +505,8 @@ function theme_og_forum_topic_list($tid, $topics, $sortby, $forum_per_page, $gid
             array('data' => theme('forum_icon', $topic->new, $topic->num_comments, $topic->comment_mode, $topic->sticky), 'class' => 'icon'),
             array('data' => l($topic->title, "node/$topic->nid"), 'class' => 'topic'),
             array('data' => $topic->num_comments. ($topic->new_replies ? '<br />' .l(format_plural($topic->new_replies, '1 new', '@count new'), "node/$topic->nid", NULL, NULL, 'new') : ''), 'class' => 'replies'),
-            array('data' => _forum_format($topic), 'class' => 'created'),
-            array('data' => _forum_format(isset($topic->last_reply) ? $topic->last_reply : NULL), 'class' => 'last-reply')
+            array('data' => og_forum_format($topic), 'class' => 'created'),
+            array('data' => og_forum_format(isset($topic->last_reply) ? $topic->last_reply : NULL), 'class' => 'last-reply')
           );
         }
         else {//non-group forum topics
@@ -492,8 +514,8 @@ function theme_og_forum_topic_list($tid, $topics, $sortby, $forum_per_page, $gid
             array('data' => theme('forum_icon', $topic->new, $topic->num_comments, $topic->comment_mode, $topic->sticky) .' public', 'class' => 'icon public'),
             array('data' => l($topic->title, "node/$topic->nid"), 'class' => 'topic'),
             array('data' => $topic->num_comments. ($topic->new_replies ? '<br />' .l(format_plural($topic->new_replies, '1 new', '@count new'), "node/$topic->nid", NULL, NULL, 'new') : ''), 'class' => 'replies'),
-            array('data' => _forum_format($topic), 'class' => 'created'),
-            array('data' => _forum_format(isset($topic->last_reply) ? $topic->last_reply : NULL), 'class' => 'last-reply')
+            array('data' => og_forum_format($topic), 'class' => 'created'),
+            array('data' => og_forum_format(isset($topic->last_reply) ? $topic->last_reply : NULL), 'class' => 'last-reply')
           );
         }
       }
@@ -508,8 +530,8 @@ function theme_og_forum_topic_list($tid, $topics, $sortby, $forum_per_page, $gid
  * Implementation of hook_settings().
  */
 function og_forum_admin_settings() {
-  $form['#submit']['og_forum_settings_submit'] = array(); // custom submit handler
-  $form['#submit']['system_settings_form_submit'] = array(); // we just overrode the standard submit, but still want it to fire too
+  $form['#submit'][] = 'og_forum_settings_submit'; // custom submit handler
+  $form['#submit'][] = 'system_settings_form_submit'; // we just overrode the standard submit, but still want it to fire too
   $form['update'] = array(
     '#type' => 'fieldset',
     '#title' => t('Retroactively update old groups'),
@@ -628,7 +650,8 @@ function og_forum_admin_settings() {
 /**
  * Custom submit handler for group update
  */
-function og_forum_settings_submit($form_id, $form_values) {
+function og_forum_settings_submit($form, &$form_state) {
+  $form_values = $form_state['values'];
   if ($form_values['op'] == t('Update old groups')) {
     og_forum_retroactively_apply();
   }
@@ -825,10 +848,10 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
       }
       break;
     case 'insert':
-      if (og_is_group_type($node->type)) {
+      if (og_is_group_type($node->type)) { 
         $default_container_yn = variable_get('forum_default_container_yn', FALSE);
         if ($default_container_yn) {
-          $edit = array('name' => $node->title, 'vid' => _forum_get_vid());
+          $edit = array('name' => $node->title, 'vid' => og_forum_get_vid());
           $default_container = variable_get('forum_default_container', 0);
           $edit['parent'] = array($default_container);
           unset($edit['tid']);
@@ -855,7 +878,7 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
           // forum number by a comma, then decription. e.g. Forum3, This is a description;Forum4
           //
           //Setup Main Container
-          $edit = array('name' => $node->title, 'vid' => _forum_get_vid());
+          $edit = array('name' => $node->title, 'vid' => og_forum_get_vid());
           $status = taxonomy_save_term($edit);
           $containers = variable_get('forum_containers', array());
           $containers[] = $edit['tid'];
@@ -902,7 +925,7 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
                   $fname = $forum_names[0];
                   unset($fdesc);
                 }                
-                $edit = array('name' => $fname, 'vid' => _forum_get_vid(), 'parent' => $curr_container, 'weight' => $weight_indx, 'description' => $fdesc);
+                $edit = array('name' => $fname, 'vid' => og_forum_get_vid(), 'parent' => $curr_container, 'weight' => $weight_indx, 'description' => $fdesc);
                 $status = taxonomy_save_term($edit);
                 $containers = variable_get('forum_containers', array());
                 $containers[] = $edit['tid'];
@@ -944,7 +967,7 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
       }
       elseif ($node->type == 'forum') {//if the node is marked public, check the 'puclicity' settings and act accordingly
         //setup variables for common operations
-        $sql = "SELECT tid, public FROM {og_term} WHERE nid = %d";
+        $sql = "SELECT tid, public FROM {og_term} WHERE nid = %d"; 
         $container = og_forum_get_forum_container($node->og_groups[0]);
         $gid = og_forum_gid_from_tid($node->tid);
         $results = db_query($sql, $gid);
@@ -965,12 +988,12 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
         elseif ($node->og_public == PRIVATE_DEFAULT) {
           if ($forums[$node->tid] == PUBLIC_AUTO) {//the forum is in an auto settable state
             $should_be_public = FALSE;
-            $sql3 = "SELECT DISTINCT oa.nid FROM {node} n INNER JOIN {og_ancestry} oa ON oa.nid = n.nid INNER JOIN {term_node} tn ON tn.nid = oa.nid
+            $sql3 = "SELECT DISTINCT COUNT(oa.nid) FROM {node} n INNER JOIN {og_ancestry} oa ON oa.nid = n.nid INNER JOIN {term_node} tn ON tn.nid = oa.nid
             WHERE n.type = 'forum' AND oa.is_public = 1 AND tn.tid = %d";
-            if (!$count = db_num_rows(db_query($sql3, $node->tid))) {
+            if (!$count = db_result(db_query($sql3, $node->tid))) {
               db_query($sql2, PRIVATE_DEFAULT, $node->tid);
               foreach ($forums as $tid => $public) {
-                if ($count = db_num_rows(db_query($sql3, $tid))) {
+                if ($count = db_result(db_query($sql3, $tid))) {
                   $should_be_public = TRUE;
                 }
               }
@@ -990,11 +1013,6 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
           $term = taxonomy_get_term($tid);
           $term->name = $node->title;
           $term = (array)$term;
-          $parents = taxonomy_get_parents($tid);
-          foreach ($parents as $parent) {
-            $pid[] = $parent->tid;
-          }         
-          $term['parent'] = $pid;
           taxonomy_save_term($term);    //will have any other modules update the term's URL aliases
         }
       }
@@ -1021,12 +1039,12 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
         elseif ($node->og_public == 0) {
           if ($forums[$node->tid] == PUBLIC_AUTO) {//the forum is in an auto settable state
             $should_be_public = FALSE;
-            $sql3 = "SELECT DISTINCT oa.nid FROM {node} n INNER JOIN {og_ancestry} oa ON oa.nid = n.nid INNER JOIN {term_node} tn ON tn.nid = oa.nid
+            $sql3 = "SELECT DISTINCT COUNT(oa.nid) FROM {node} n INNER JOIN {og_ancestry} oa ON oa.nid = n.nid INNER JOIN {term_node} tn ON tn.nid = oa.nid
             WHERE n.type = 'forum' AND oa.is_public = 1 AND tn.tid = %d";
-            if (!$count = db_num_rows(db_query($sql3, $node->tid))) {
+            if (!$count = db_result(db_query($sql3, $node->tid))) {
               db_query($sql2, PRIVATE_DEFAULT, $node->tid);
               foreach ($forums as $tid => $public) {
-                if ($count = db_num_rows(db_query($sql3, $tid))) {
+                if ($count = db_result(db_query($sql3, $tid))) {
                   $should_be_public = TRUE;
                 }
               }
@@ -1079,12 +1097,12 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
           }
           $breadcrumb[] = array('path' => "node/$node->nid", 'title' => $node->title);
           $breadcrumb[] = array('path' => $_GET['q']);
-          menu_set_location($breadcrumb);
+          drupal_set_breadcrumb($breadcrumb);
         }
         drupal_set_title(check_plain($node->title));
         break;
       }
-   case 'submit':
+   case 'presave':
      if ($node->type == 'forum') {
        $gid = og_forum_gid_from_tid($node->tid);
        $node->og_groups = array();
@@ -1093,7 +1111,7 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
        $node->og_groups = array_keys($node->og_groups);  
      }
   }
-} // function og_forum_nodeapi()
+} // fun/Users/paulbooker/Subversion/Development/drupal6/sites/all/modules/og/og.modulection og_forum_nodeapi()
 
 /**
  * Retrieve container for given group
@@ -1114,7 +1132,7 @@ function og_forum_get_forum_container($group_id) {
 function og_forum_is_admin($group) {
   global $user;
   $result = db_query(og_list_users_sql(0), $group->nid);
-  $cntall = db_num_rows($result);
+  $cntall = db_result($result);
   $cntpending = 0;
   while ($row = db_fetch_object($result)) {
     if ($user->uid == 1 && user_access('administer forums')) return TRUE;
@@ -1165,10 +1183,10 @@ function og_forum_retroactively_apply() {
 /**
  * Implementation of hook_form_alter().
  */
-function og_forum_form_alter($form_id, &$form) {
+function og_forum_form_alter(&$form, &$form_state, $form_id) {
   // Auto-select group's forum when adding/editing a forum topic
-  if ($form_id == 'forum_node_form') {
-    $group = og_get_group_context(); 
+  if ($form_id == 'forum_node_form') { 
+    $group = og_get_group_context();  
     //if we couldn't get the context from og, don't give up. Try getting it from the nid if we have one.
     if (empty($group)) { 
       if (arg(0) == 'node' && arg(2) == 'edit' && is_numeric(arg(1))) { 
@@ -1178,23 +1196,20 @@ function og_forum_form_alter($form_id, &$form) {
         $group = og_get_group_context();
       }
     }
-    $GID = $group->nid;
+    $GID = $group->nid; 
     if ($GID) {
       $results = db_query('SELECT ot.tid, th.parent FROM {og_term} ot LEFT JOIN {term_hierarchy} th ON ot.tid = th.tid WHERE nid = %d ORDER BY tid ASC', $GID);
       while ($result = db_fetch_object($results)) {
         $all_results[$result->tid] = $result->parent;
       }
-      $vid =  _forum_get_vid();
+      $vid =  og_forum_get_vid(); 
       //set the forum selection drop down box 
-      if (arg(1) == 'add' && arg(3)) {
+      if (arg(1) == 'add' && arg(3)) { 
         $term = arg(3);
         $form['taxonomy'][$vid]['#default_value'] = array($term);
       }
       elseif (arg(2) == 'edit') { 
         $term = $form['taxonomy'][$vid]['#default_value'][0];
-        $groups = $form['og_nodeapi']['visible']['og_groups']; 
-        $form['og_nodeapi']['invisible']['og_groups'] = array('#type' => 'value', '#value' => $groups);
-        unset($form['og_nodeapi']['visible']['og_groups']);
       }
       elseif (arg(1) == 'ognodeadd') {//for og_user_roles compatibility
         $term = $_GET['tid'];
@@ -1210,9 +1225,9 @@ function og_forum_form_alter($form_id, &$form) {
         else {
           $term = key($all_results);
           $form['taxonomy'][$vid]['#default_value'] = array($term);
-        }
+        } 
       }
-      if (!user_access('administer forums')) { 
+      if (!user_access('administer forums')) {   
         foreach ($form['taxonomy'][$vid]['#options'] as $key => $the_rest) { 
           if ($key === '') {  
             continue;
@@ -1223,7 +1238,7 @@ function og_forum_form_alter($form_id, &$form) {
             unset($form['taxonomy'][$vid]['#options'][$key]);
           }
         } //check to see if the audience is required or optional. if optional, don't do the following two lines
-        if (variable_get('og_audience_required', FALSE) == 1) {
+        if (variable_get('og_audience_required', FALSE) == 1) {  
           if (count($form['og_nodeapi']['visible']['og_groups']['#default_value'])) {
             drupal_add_js(drupal_get_path('module', 'og_forum'). '/og_forum.js');
             $options = $form['og_nodeapi']['visible']['og_groups']['#options'];
@@ -1257,7 +1272,7 @@ function og_forum_form_alter($form_id, &$form) {
       while ($result = db_fetch_object($results)) {
         $all_results[$result->tid] = $result->parent;
       }
-      $vid =  _forum_get_vid(); 
+      $vid =  og_forum_get_vid(); 
       $cut = FALSE;
       if (arg(1) == 'add' && arg(3)) { 
         $cut = TRUE;
@@ -1285,10 +1300,10 @@ function og_forum_form_alter($form_id, &$form) {
           }
         }
       }
-      $groups = $form['og_nodeapi']['visible']['og_groups']; 
-      $form['og_nodeapi']['invisible']['og_groups'] = array('#type' => 'value', '#value' => $groups);
-      unset($form['og_nodeapi']['visible']['og_groups']);
     }
+    $groups = $form['og_nodeapi']['visible']['og_groups']; 
+    $form['og_nodeapi']['invisible']['og_groups'] = array('#type' => 'value', '#value' => $groups);
+    unset($form['og_nodeapi']['visible']['og_groups']);
     $form['taxonomy']['#collapsible'] = TRUE;
     $form['taxonomy']['#collapsed'] = TRUE;
   }
@@ -1340,7 +1355,7 @@ function og_forum_manage($group) {
   while ($result = db_fetch_object($results)) {
     $all_tids[$result->tid] = $result->public;
   }
-  $tree = taxonomy_get_tree(_forum_get_vid());
+  $tree = taxonomy_get_tree(og_forum_get_vid());
   if ($tree) {
     foreach ($tree as $term) {
       if (in_array($term->tid, $og_terms)) {
@@ -1440,7 +1455,7 @@ function og_forum_form_forum($edit, $group_id = 0, $tid = 0) {
       '#access' => 0,
     );
   }
-  $form['vid'] = array('#type' => 'hidden', '#value' => _forum_get_vid());
+  $form['vid'] = array('#type' => 'hidden', '#value' => og_forum_get_vid());
   $form['submit' ] = array('#type' => 'submit', '#value' => t('Submit'));
   if ($edit['tid']) {
     $form['delete'] = array('#type' => 'submit', '#value' => t('Delete'));
@@ -1586,7 +1601,7 @@ function _og_forum_manage_breadcrumb($group, $op = NULL) {
       );
       break;
   }
-  menu_set_location($breadcrumb);
+  drupal_set_breadcrumb($breadcrumb);
 } // function _og_forum_manage_breadcrumb()
 
 /**
@@ -1610,9 +1625,9 @@ function _og_forum_ogterms($group) {
 function og_forum_forum_limit_reached($nid) {
   $forum_limit = variable_get('forum_limit', 0);
   if ($forum_limit == 0) return FALSE;
-  $sql = "SELECT DISTINCT tid FROM {og_term} WHERE nid = %d";
+  $sql = "SELECT DISTINCT COUNT(tid) FROM {og_term} WHERE nid = %d";
   $result = db_query($sql, $nid);
-  $num = db_num_rows($result);
+  $num = db_result($result);
   $num_forums = $num - 1; //because the container is part of the query result
   if ($num_forums >= $forum_limit) {
     return TRUE;
@@ -1646,9 +1661,9 @@ function og_forum_private($gid, $tid) {
   $container = og_forum_get_forum_container($gid);
   $sql = "UPDATE {og_term} SET public = %d WHERE tid = %d and nid = %d";
   db_query($sql, PRIVATE_BY_GROUP_OWNER, $tid, $gid);
-  $sql2 = "SELECT tid FROM {og_term} WHERE nid = %d AND tid <> %d AND public > 1";
+  $sql2 = "SELECT COUNT(tid) FROM {og_term} WHERE nid = %d AND tid <> %d AND public > 1";
   $results = db_query($sql2, $gid, $container);//find out if any other forums are public
-  $result = db_num_rows($results);
+  $result = db_result($results);
   if (!$result) {//if no other forums in the group are public, go ahead and make the container private
     db_query($sql, PRIVATE_DEFAULT, $container, $gid);
   }
@@ -1665,9 +1680,9 @@ function og_forum_reset($gid, $tid) {
   $container = og_forum_get_forum_container($gid);
   $sql = "UPDATE {og_term} SET public = %d WHERE tid = %d and nid = %d";
   db_query($sql, PRIVATE_DEFAULT, $tid, $gid);
-  $sql2 = "SELECT tid FROM {og_term} WHERE nid = %d AND tid <> %d AND public > 1";
+  $sql2 = "SELECT COUNT(tid) FROM {og_term} WHERE nid = %d AND tid <> %d AND public > 1";
   $results = db_query($sql2, $gid, $container);//find out if any other forums are public
-  $result = db_num_rows($results);
+  $result = db_result($results);
   if (!$result) {//if no other forums in the group are public, go ahead and make the container private
     db_query($sql, PRIVATE_DEFAULT, $container, $gid);
   }
@@ -1691,3 +1706,17 @@ function og_forum_is_public($tid) {
     return 0;
   }
 } // function og_forum_is_public()
+
+function og_forum_get_vid() {
+  $vid = variable_get('forum_nav_vocabulary', '');
+  return $vid;
+}	
+
+function og_forum_format($topic) {
+  if ($topic && $topic->timestamp) {
+    return t('@time ago<br />by !author', array('@time' => format_interval(time() - $topic->timestamp), '!author' => theme('username', $topic)));
+  }
+  else {
+    return t('n/a');
+  }
+}

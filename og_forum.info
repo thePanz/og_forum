@@ -1,7 +1,9 @@
-; $Id$
+;$Id$
+
 name = OG forum
 description = Creates forums within organic groups.
-dependencies = og forum
-package = Organic groups
-project = "og_forum"
 
+package = Organic groups
+dependencies[] = forum
+dependencies[] = og
+core = 6.x

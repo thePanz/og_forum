@@ -2,84 +2,41 @@
 /** 
  * $Id$
  * @package OG_Forum
- * @category NeighborForge
  */
-
+ 
 /**
- * Implementation of hook_install().
- */
+* Implementation of hook_install().
+*/
 function og_forum_install() {
-  switch ($GLOBALS['db_type']) {
-    case 'mysql':
-    case 'mysqli':
-      db_query("
-        CREATE TABLE IF NOT EXISTS {og_term} (
-          tid int(10) unsigned NOT NULL default '0',
-          nid int(10) unsigned NOT NULL default '0',
-          public int(1) unsigned NOT NULL default '0',
-          PRIMARY KEY  (tid,nid)
-        ) /*!40100 DEFAULT CHARACTER SET utf8 */
-      ");
-      db_query("UPDATE {system} SET weight = %d WHERE name = '%s'", 2, 'og_forum');
-      $vid = _forum_get_vid();
-      db_query("UPDATE {vocabulary} SET weight = %d WHERE vid = %d", -10, $vid);
-      break;
-    case 'psgql':
-      // TODO
-      break;
-  }
+  // Create tables.
+  drupal_install_schema('og_forum');
 }
 
 /**
- * Increase weight of og_forum so that it comes after taxonomy, to allow
- * for auto-selecting forum.
- *
- * Also, decrease the weight for the forum vocabulary so it is always first
- * to be selected in a forum topic.
- */
-function og_forum_update_1() {
-  $ret = array();
-  $vid = _forum_get_vid();
-
-  switch ($GLOBALS['db_type']) {
-    case 'mysql':
-    case 'mysqli':
-      $ret[] = update_sql("UPDATE {system} SET weight = 2 WHERE name = 'og_forum'");
-      $ret[] = update_sql("UPDATE {vocabulary} SET weight = -10 WHERE vid = $vid");
-      break;
-    case 'pgsql':
-      // TODO
-      break;
-  }
-
-  return $ret;
-}
-
-/**
- * Implementation of hook_update
- * 
- * Here we add a column to allow for tracking of public and private forums
- */
-function og_forum_update_2() {
-  $ret = array();
-
-  switch ($GLOBALS['db_type']) {
-    case 'mysql':
-    case 'mysqli':
-      $ret[] = update_sql("ALTER TABLE {og_term} ADD COLUMN public int(1) unsigned NOT NULL default '0'");
-      break;
-    case 'pgsql':
-      // TODO
-      break;
-  }
-
-  return $ret;
-}
+* Implementation of hook_schema().
+*/
+function og_forum_schema() {
+  $schema['og_term'] = array(
+    'fields' => array(
+      'tid' => array('type' => 'int', 'length' => '10','unsigned' => TRUE, 'not null' => TRUE, 'default' => '0'), 
+      'nid' => array('type' => 'int', 'length' => '10','unsigned' => TRUE, 'not null' => TRUE, 'default' => '0'),
+      'public' => array('type' => 'int', 'length' => '1','unsigned' => TRUE, 'not null' => TRUE, 'default' => '0'),
+    ),   
+    'primary key' => array('tid','nid')
+  );
+  
+  db_query("UPDATE {system} SET weight = %d WHERE name = '%s'", 2, 'og_forum');
+  $vid = variable_get('forum_nav_vocabulary', '');
+  db_query("UPDATE {vocabulary} SET weight = %d WHERE vid = %d", -10, $vid);
+    
+  return $schema;
+} 
 
 /**
  * Implementation of hook_uninstall().
  */
 function og_forum_uninstall() {
+  drupal_uninstall_schema('og_forum');
   $vardel = FALSE;
   $query1 = db_query('DROP TABLE {og_term}');
   if(variable_del('forum_default_name') && variable_del('forum_default_container_yn') && variable_del('forum_default_container') && variable_del('forum_allow_public')
