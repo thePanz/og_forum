@@ -168,7 +168,7 @@ function og_forum_theme() {
 /**
  * Menu callback; allows us to set group context prior to loading a forum
  */
-function og_forum_page($tid = 0) {  
+function og_forum_page($tid = 0) {   
   global $user;
   if ($tid != 0) { 
     og_forum_set_og_group_context_from_tid($tid);
@@ -484,9 +484,9 @@ function theme_og_forum_topic_list($tid, $topics, $sortby, $forum_per_page, $gid
         $public_post = db_fetch_object(db_query($sql, $topic->nid));
         if (isset($public_post) && $public_post->is_public == 1 && !array_key_exists($gid, $user->og_groups)) {
           $rows[] = array(
-            array('data' => theme('forum_icon', $topic->new, $topic->num_comments, $topic->comment_mode, $topic->sticky) .' public', 'class' => 'icon public'),
-            array('data' => l($topic->title, "node/$topic->nid"), 'class' => 'topic'),
-            array('data' => $topic->num_comments. ($topic->new_replies ? '<br />' .l(format_plural($topic->new_replies, '1 new', '@count new'), "node/$topic->nid", NULL, NULL, 'new') : ''), 'class' => 'replies'),
+            array('data' => theme('forum_icon', $topic->new, $topic->num_comments, $topic->comment_mode, $topic->sticky) .' public', 'class' => 'icon public'),  
+            array('data' => l($topic->title, "node/$topic->nid"), 'class' => 'topic'),  
+            array('data' => $topic->num_comments. ($topic->new_replies ? '<br />' .l(format_plural($topic->new_replies, '1 new', '@count new'), "node/$topic->nid", array('attributes' => NULL, 'query' => NULL, 'fragment' => 'new')) : ''), 'class' => 'replies'),
             array('data' => og_forum_format($topic), 'class' => 'created'),
             array('data' => og_forum_format(isset($topic->last_reply) ? $topic->last_reply : NULL), 'class' => 'last-reply')
           );
@@ -495,7 +495,7 @@ function theme_og_forum_topic_list($tid, $topics, $sortby, $forum_per_page, $gid
           $rows[] = array(
             array('data' => theme('forum_icon', $topic->new, $topic->num_comments, $topic->comment_mode, $topic->sticky) .' private', 'class' => 'icon private'),
             array('data' => l($topic->title, "node/$topic->nid"), 'class' => 'topic'),
-            array('data' => $topic->num_comments. ($topic->new_replies ? '<br />' .l(format_plural($topic->new_replies, '1 new', '@count new'), "node/$topic->nid", NULL, NULL, 'new') : ''), 'class' => 'replies'),
+            array('data' => $topic->num_comments. ($topic->new_replies ? '<br />' .l(format_plural($topic->new_replies, '1 new', '@count new'), "node/$topic->nid", array('attributes' => NULL, 'query' => NULL, 'fragment' => 'new')) : ''), 'class' => 'replies'),
             array('data' => og_forum_format($topic), 'class' => 'created'),
             array('data' => og_forum_format(isset($topic->last_reply) ? $topic->last_reply : NULL), 'class' => 'last-reply')
           );
@@ -504,7 +504,7 @@ function theme_og_forum_topic_list($tid, $topics, $sortby, $forum_per_page, $gid
           $rows[] = array(
             array('data' => theme('forum_icon', $topic->new, $topic->num_comments, $topic->comment_mode, $topic->sticky), 'class' => 'icon'),
             array('data' => l($topic->title, "node/$topic->nid"), 'class' => 'topic'),
-            array('data' => $topic->num_comments. ($topic->new_replies ? '<br />' .l(format_plural($topic->new_replies, '1 new', '@count new'), "node/$topic->nid", NULL, NULL, 'new') : ''), 'class' => 'replies'),
+            array('data' => $topic->num_comments. ($topic->new_replies ? '<br />' .l(format_plural($topic->new_replies, '1 new', '@count new'), "node/$topic->nid", array('attributes' => NULL, 'query' => NULL, 'fragment' => 'new')) : ''), 'class' => 'replies'),
             array('data' => og_forum_format($topic), 'class' => 'created'),
             array('data' => og_forum_format(isset($topic->last_reply) ? $topic->last_reply : NULL), 'class' => 'last-reply')
           );
@@ -513,7 +513,7 @@ function theme_og_forum_topic_list($tid, $topics, $sortby, $forum_per_page, $gid
           $rows[] = array(
             array('data' => theme('forum_icon', $topic->new, $topic->num_comments, $topic->comment_mode, $topic->sticky) .' public', 'class' => 'icon public'),
             array('data' => l($topic->title, "node/$topic->nid"), 'class' => 'topic'),
-            array('data' => $topic->num_comments. ($topic->new_replies ? '<br />' .l(format_plural($topic->new_replies, '1 new', '@count new'), "node/$topic->nid", NULL, NULL, 'new') : ''), 'class' => 'replies'),
+            array('data' => $topic->num_comments. ($topic->new_replies ? '<br />' .l(format_plural($topic->new_replies, '1 new', '@count new'), "node/$topic->nid", array('attributes' => NULL, 'query' => NULL, 'fragment' => 'new')) : ''), 'class' => 'replies'),
             array('data' => og_forum_format($topic), 'class' => 'created'),
             array('data' => og_forum_format(isset($topic->last_reply) ? $topic->last_reply : NULL), 'class' => 'last-reply')
           );
@@ -1146,16 +1146,16 @@ function og_forum_is_admin($group) {
 /**
  * Implementation of hook_og_create_links().
  */
-function og_forum_og_create_links($group) {
+function og_forum_og_create_links($group) { 
   global $user;
   $links = array();
   // Get group's forum
   $forum  = og_forum_get_forum_container($group->nid);
   if ($forum) {
-    $links[] = l(t('Group forums'), "forum/$forum", array('title' => t('View group forum discussions.')));
+    $links[] = l(t('Group forums'), "forum/$forum", array('attributes' => array('title' => t('View group forum discussions.'))));
   // Add forum creation link for the group managers
-    if ((og_forum_is_admin($group) && user_access('admin own group forums')) || user_access('administer forums')) {
-      $links[] = l(t('Manage group forums'), 'og_forum/manage/' . $group->nid, array('title' => t('Let you create, edit, delete group\'s forums.')));
+    if ((og_forum_is_admin($group) && user_access('admin own group forums')) || user_access('administer forums')) { 
+      $links[] = l(t('Manage group forums'), 'og_forum/manage/' . $group->nid, array('attributes' => array('title' => t('Let you create, edit, delete group\'s forums.'))));
     }
   }
   return $links;
