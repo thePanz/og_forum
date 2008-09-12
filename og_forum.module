@@ -39,116 +39,85 @@ function og_forum_perm() {
  */
 function og_forum_menu() {
   $items = array();
-  //if ($may_cache) {
-    $items['forum'] = array(
-      'title' => t('Forums'),
-      'page callback' => 'og_forum_page',
-      'access arguments' => array('access content'),
-      'type' => MENU_SUGGESTED_ITEM,
-    );
-    $items['admin/og/og_forum'] = array(
-      'title' => t('Organic groups forums'),
-      'description' => t('Configure forums for organic groups'),
-      'page callback' => 'drupal_get_form',
-      'page arguments' => array('og_forum_admin_settings'),
-      'access arguments' => array('administer site configuration'),
-    );
-  //}
-  //else {
-    // we expect the group nid as 1st argument
-    if (is_numeric(arg(2))) {
-      // load forum's group
-      $group = node_load(arg(2));
-      if ($group) {
-        $items['og_forum/manage/%group'] = array(
-          'title' => t('Manage groups forum'),
-          'page callback' => 'og_forum_manage',
-          'page arguments' => array($group),
-          'access callback' =>  'og_forum_access_privileges_2',
-          'access arguments' => array($group),
-          'type' => MENU_CALLBACK,
-        );
-      }
-    }
-    elseif (is_numeric(arg(3)) && is_numeric(arg(4))) {
-      if (arg(2) == 'add') {
-        $group = node_load(arg(3));
-        $items['og_forum/manage/add/%gid/%tid'] = array(
-          'title' => t('Add forum'),
-          'page callback' => 'og_forum_form_main',
-          'page arguments' => array('add', array('group_id' => arg(3), 'parent' => arg(4))),
-          'access callback' =>  'og_forum_access_privileges_3',
-          'access arguments' => array($group,arg(3)),
-          'type' => MENU_CALLBACK
-        );
-      }
-      elseif (arg(2) == 'edit') {
-        $group = node_load(arg(3));
-        $term = taxonomy_get_term(arg(4));
-        $parents = taxonomy_get_parents($term->tid);
-        $parent = array_pop($parents);
-        $term->parent = $parent->tid;
-        $term->group_id = arg(3);
-        $items['og_forum/manage/edit/%gid/%tid'] = array(
-          'title' => t('Edit forum'),
-          'page callback' => 'og_forum_form_main',
-          'page arguments' => array('edit', (array)$term),
-          'access callback' =>  'og_forum_access_privileges_2',
-          'access arguments' => array($group),
-          'type' => MENU_CALLBACK
-        );
-      }
-      elseif (arg(2) == 'public') {
-        $group = node_load(arg(3));
-        $allow_public = variable_get('forum_allow_public', 0);
-        $items['og_forum/manage/public/%gid/%tid'] = array(
-          'title' => t('Make forum public'),
-          'page callback' => 'og_forum_public',
-          'page arguments' => array('group_id' => arg(3), 'tid' => arg(4)),
-          'access callback' =>  'og_forum_access_privileges_1',
-          'access arguments' => array($group, $allow_public),
-          'type' => MENU_CALLBACK
-        );
-      }
-      elseif (arg(2) == 'private') {
-        $group = node_load(arg(3));
-        $allow_public = variable_get('forum_allow_public', 0);
-        $items['og_forum/manage/private/%gid/%tid'] = array(
-          'title' => t('Make forum private'),
-          'page callback' => 'og_forum_private',
-          'page arguments' => array('group_id' => arg(3), 'tid' => arg(4)),
-          'access callback' =>  'og_forum_access_privileges_1',
-          'access arguments' => array($group, $allow_public),
-          'type' => MENU_CALLBACK
-        );
-      }
-      elseif (arg(2) == 'reset') {
-        $group = node_load(arg(3));
-        $allow_public = variable_get('forum_allow_public', 0);
-        $items['og_forum/manage/reset/%gid/%tid'] = array(
-          'title' => t('Reset forum publicity'),
-          'page callback' => 'og_forum_reset',
-          'page arguments' => array('group_id' => arg(3), 'tid' => arg(4)),
-          'access callback' =>  'og_forum_access_privileges_1',
-          'access arguments' => array($group, $allow_public),
-          'type' => MENU_CALLBACK
-        );
-      }
-    }
-  //}
+  $items['forum'] = array(
+    'title' => t('Forums'),
+    'page callback' => 'og_forum_page',
+    'access arguments' => array('access content'),
+    'type' => MENU_SUGGESTED_ITEM,
+  );
+  $items['admin/og/og_forum'] = array(
+    'title' => t('Organic groups forums'),
+    'description' => t('Configure forums for organic groups'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('og_forum_admin_settings'),
+    'access arguments' => array('administer site configuration'),
+  );
+   $items['og_forum/manage/public/%/%'] = array(
+    'title' => t('Make forum public'),
+    'page callback' => 'og_forum_public',
+    'page arguments' => array(3,4),
+    'access callback' =>  'og_forum_access_privileges_1',
+    'access arguments' => array(3),
+    'type' => MENU_CALLBACK
+  );
+  $items['og_forum/manage/private/%/%'] = array(
+    'title' => t('Make forum private'),
+    'page callback' => 'og_forum_private',
+    'page arguments' => array(3,4),
+    'access callback' =>  'og_forum_access_privileges_1',
+    'access arguments' => array(3),
+    'type' => MENU_CALLBACK
+  );
+  $items['og_forum/manage/reset/%/%'] = array(
+    'title' => t('Reset forum publicity'),
+    'page callback' => 'og_forum_reset',
+    'page arguments' => array(3,4),
+    'access callback' =>  'og_forum_access_privileges_1',
+    'access arguments' => array(3),
+    'type' => MENU_CALLBACK
+  );
+
+  $items['og_forum/manage/%'] = array(
+    'title' => t('Manage groups forum'),
+    'page callback' => 'og_forum_manage',
+    'page arguments' => array(2),
+    'access callback' =>  'og_forum_access_privileges_2',
+    'access arguments' => array(2),
+    'type' => MENU_CALLBACK,
+  );            
+  $items['og_forum/manage/add/%/%'] = array(
+    'title' => t('Add forum'),
+    'page callback' => 'og_forum_form_main',
+    'page arguments' => array(2,3,4),
+    'access callback' =>  'og_forum_access_privileges_3',
+    'access arguments' => array(3,4),
+    'type' => MENU_CALLBACK
+  );       
+  $items['og_forum/manage/edit/%/%'] = array(
+    'title' => t('Edit forum'),
+    'page callback' => 'og_forum_form_main',
+    'page arguments' => array(2,3,4),
+    'access callback' =>  'og_forum_access_privileges_2',
+    'access arguments' => array(3),
+    'type' => MENU_CALLBACK
+  ); 
   return $items;
 } // function og_forum_menu()
 
-function og_forum_access_privileges_1 ($group, $allow_public) {
+function og_forum_access_privileges_1 ($gid) {
+  $group = node_load($gid);
+  $allow_public = variable_get('forum_allow_public', 0);	
   return ((og_forum_is_admin($group) && user_access('admin own group forums') && $allow_public) || user_access('make forums public'));	
 }	
 
-function og_forum_access_privileges_2 ($group) {
+function og_forum_access_privileges_2 ($gid) {
+  $group = node_load($gid);
   return ((og_forum_is_admin($group) && user_access('admin own group forums')) || user_access('administer forums'));
 }
 
-function og_forum_access_privileges_3 ($group, $arg3) {
-  return ((og_forum_is_admin($group) && user_access('admin own group forums') && !og_forum_forum_limit_reached($arg3)) || user_access('administer forums'));
+function og_forum_access_privileges_3 ($gid, $tid) {
+  $group = node_load($gid);
+  return ((og_forum_is_admin($group) && user_access('admin own group forums') && !og_forum_forum_limit_reached($tid)) || user_access('administer forums'));
 } // took off a ) bracket after the end of user_access('admin own group forums') , is this right ?? 		
 
 function og_forum_theme() {
@@ -1338,8 +1307,9 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
 /**
  * Let group managers manage their forums
  */
-function og_forum_manage($group) {
+function og_forum_manage($gid) { 
   global $user;
+  $group = node_load($gid);
   $allow_public = variable_get('forum_allow_public', 0);
   og_set_theme($group->nid);
   og_set_group_context($group);
@@ -1388,27 +1358,37 @@ function og_forum_manage($group) {
 /**
  * Select the right form to display
  */
-function og_forum_form_main($type, $edit = array()) {
+ 
+function og_forum_form_main($type, $group_id, $tid) {
+  $edit = array('group_id' => $group_id, 'parent' => $tid);
   if ($_POST['op'] == t('Delete') || $_POST['confirm']) {
     return drupal_get_form('og_forum_confirm_delete', $edit['tid'], $group_id);
-  }
+  } 
   switch ($type) {
     case 'add':
-      $group_id = $edit['group_id'];
+      $group_id = $edit['group_id']; 
       return drupal_get_form('og_forum_form_forum', $edit, $group_id, $edit['tid']);
     case 'edit':
       $group_id = $edit['group_id'];
+      $group = node_load($group_id);
+      $term = taxonomy_get_term($tid);
+      $parents = taxonomy_get_parents($term->tid);
+      $parent = array_pop($parents);
+      $term->parent = $parent->tid;
+      $term->group_id = $group_id;
+      $edit = (array)$term;
       return drupal_get_form('og_forum_form_forum', $edit, $group_id);
   }
 } // function og_forum_form_main(
 
+
 /**
  * Render forum creation form
  */
-function og_forum_form_forum($edit, $group_id = 0, $tid = 0) {
-  og_set_theme($gid);
+function og_forum_form_forum(&$form_state, $edit, $group_id = 0, $tid = 0) { 
+  og_set_theme($group_id);
   if (!$edit['tid']) {
-    $tid = $edit['parent'];
+   $tid = $edit['parent'];
   }
   $form['name'] = array('#type' => 'textfield',
     '#title' => t('Forum name'),
@@ -1421,8 +1401,8 @@ function og_forum_form_forum($edit, $group_id = 0, $tid = 0) {
     '#title' => t('Description'),
     '#default_value' => $edit['description'],
     '#description' => t('The forum description can give users more information about the discussion topics it contains.'),
-  );
-  if (arg(2) == 'add') {
+  );  
+  if (arg(2) == 'add') {  
     _og_forum_manage_breadcrumb(node_load($group_id), 'add');
     $form['parent'] = array(
       '#type' => 'hidden',
@@ -1456,23 +1436,25 @@ function og_forum_form_forum($edit, $group_id = 0, $tid = 0) {
     );
   }
   $form['vid'] = array('#type' => 'hidden', '#value' => og_forum_get_vid());
-  $form['submit' ] = array('#type' => 'submit', '#value' => t('Submit'));
+  $form['submit'] = array('#type' => 'submit', '#value' => t('Submit'));
   if ($edit['tid']) {
     $form['delete'] = array('#type' => 'submit', '#value' => t('Delete'));
     $form['tid'] = array('#type' => 'hidden', '#value' => $edit['tid']);
   }
-  $form['#base'] = 'og_forum_form';
+  $form['#submit'][] = 'og_forum_form_submit';
+  $form['#validate'][] = 'og_forum_form_validate';
   return $form;
 } // function og_forum_form_forum()
 
 /**
   * Validate group id and term id values
   */
-function og_forum_form_validate($form_id, $form_values) {
+function og_forum_form_validate($form, &$form_state) { 
   global $user;
+  $form_values = $form_state['values']; 
   $error = true;
   if (is_numeric($form_values['group_id'])) {
-    $group = node_load($form_values['group_id']);
+    $group = node_load($form_values['group_id']); 
     // check that the user is the manager
     if ($group && og_forum_is_admin($group) && (in_array($form_values['parent'], _og_forum_ogterms($group)) || $form_values['tid'])) {
       $error = false;
@@ -1487,7 +1469,8 @@ function og_forum_form_validate($form_id, $form_values) {
 /**
  * Store created/updated forum on the db
  */
-function og_forum_form_submit($form_id, $form_values) {
+function og_forum_form_submit($form, &$form_state) {
+  $form_values = $form_state['values'];
   $container = false;
   $type = t('forum');
   $status = taxonomy_save_term($form_values);
@@ -1504,7 +1487,7 @@ function og_forum_form_submit($form_id, $form_values) {
       drupal_set_message(t('The !type %term has been updated.', array('%term' => $form_values['name'], '!type' => $type)));
       break;
   }
-  return 'og_forum/manage/' .$form_values['group_id'];
+  $form_state['redirect'] = 'og_forum/manage/' .$form_values['group_id'];
 } // function og_forum_form_submit()
 
 /**
@@ -1571,34 +1554,21 @@ function og_forum_confirm_delete_submit($form_id, $form_values) {
 /**
  * Set a nice breadcrumb for the manage pages
  */
-function _og_forum_manage_breadcrumb($group, $op = NULL) {
-  $breadcrumb = array();
-  $breadcrumb[] = array(
-    'path' => 'forum',
-    'title' => $vocabulary->name
-  );
-  $breadcrumb[] = array(
-    'path' => 'node/' .$group->nid,
-    'title' => $group->title
-  );
+function _og_forum_manage_breadcrumb($group, $op = NULL) {  
+  global $vocabulary;	
+  $breadcrumb[] = l(t('Home'), NULL);
+  $breadcrumb[] = l(t("@name", array('@name' => $vocabulary->name)), 'forum');
+  $breadcrumb[] = l(t("@name", array('@name' => $group->title)), 'node/' .$group->nid);
+  
   switch ($op) {
     case 'add':
-      $breadcrumb[] = array(
-        'path' => 'og_forum/manage/' .$group->nid,
-        'title' => t('Add'). ' ' .$group->title. ' ' .t('forums'),
-      );
+      $breadcrumb[] = l(t("Add @title forums", array('@title' => $group->title)), 'og_forum/manage/' .$group->nid);
       break;
     case 'edit':
-      $breadcrumb[] = array(
-        'path' => 'og_forum/manage' .$group->nid,
-        'title' => t('Edit'). ' ' .$group->title. ' ' .t('forums'),
-      );
+      $breadcrumb[] = l(t("Edit @title forums", array('@title' => $group->title)), 'og_forum/manage' .$group->nid);
       break;
     case 'default':
-      $breadcrumb[] = array(
-        'path' => 'og_forum/manage/' .$group->nid,
-        'title' => t('Manage'). ' ' .$group->title. ' ' .t('forums'),
-      );
+      $breadcrumb[] = l(t("Manage @title forums", array('@title' => $group->title)), 'og_forum/manage/' .$group->nid);
       break;
   }
   drupal_set_breadcrumb($breadcrumb);
