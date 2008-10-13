@@ -147,6 +147,8 @@ function og_forum_page($tid = 0) {
         return drupal_access_denied();
       }
       og_set_theme($gid);
+      $node = node_load($gid);
+      og_set_language($node);
     }
   }
   elseif (is_numeric(og_get_group_context())) {
@@ -1313,6 +1315,7 @@ function og_forum_manage($gid) {
   $group = node_load($gid);
   $allow_public = variable_get('forum_allow_public', 0);
   og_set_theme($group->nid);
+  og_set_language($group);
   og_set_group_context($group);
   // set a nice breadcrumb
   _og_forum_manage_breadcrumb($group);
@@ -1387,6 +1390,8 @@ function og_forum_form_main($type, $group_id, $tid) {
  * Render forum creation form
  */
 function og_forum_form_forum(&$form_state, $edit, $group_id = 0, $tid = 0) { 
+  $node = node_load($group_id);
+  og_set_language($node);
   og_set_theme($group_id);
   if (!$edit['tid']) {
    $tid = $edit['parent'];
