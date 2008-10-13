@@ -123,10 +123,10 @@ function og_forum_access_privileges_3 ($gid, $tid) {
 function og_forum_theme() {
   return array(
     'og_forum_display' => array(
-      'arguments' => array('formus' => NULL,'topics' => NULL,'parents' => NULL,'tid' => NULL,'sortby' => NULL,'forum_per_page' => NULL),
+      'arguments' => array('forums' => NULL,'topics' => NULL,'parents' => NULL,'tid' => NULL,'sortby' => NULL,'forum_per_page' => NULL),
     ),
     'og_forum_list' => array(
-      'arguments' => array('formus' => NULL,'parents' => NULL,'tid' => NULL),
+      'arguments' => array('forums' => NULL,'parents' => NULL,'tid' => NULL),
     ),
     'og_forum_topic_list' => array(
       'arguments' => array('tid' => NULL, 'topics' => NULL, 'sortby' => NULL,'forum_per_page' => NULL, 'gid' => NULL),
@@ -146,6 +146,7 @@ function og_forum_page($tid = 0) {
       if (!array_key_exists($gid, $user->og_groups) && ($user->uid != 1) && !(user_access('adminster forums')) && !og_forum_is_public($tid)) {
         return drupal_access_denied();
       }
+      og_set_theme($gid);
     }
   }
   elseif (is_numeric(og_get_group_context())) {
@@ -366,7 +367,7 @@ function theme_og_forum_display($forums, $topics, $parents, $tid, $sortby, $foru
       $output .= '<li>' .t('You are not allowed to post a new forum topic.'). '</li>';
     }
     else {
-      $output .= '<li>' .t('<a href="@login">Login</a> to post a new forum topic.', array('@login' => url('user/login', drupal_get_destination()))). '</li>';
+       $output .= '<li>' .t('<a href="@login">Login</a> to post a new forum topic.', array('@login' => url('user/login', array('query' => drupal_get_destination())))). '</li>';
     }
     $output .= '</ul>';
     $output .= theme('og_forum_list', $forums, $parents, $tid);
@@ -980,6 +981,8 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
         $tid = db_result(db_query('SELECT tid FROM {og_term} WHERE nid = %d', $node->nid));
         if ($tid) {
           $term = taxonomy_get_term($tid);
+          $term->parents = taxonomy_get_parents($tid);
+          $term->parent = array_keys($term->parents);
           $term->name = $node->title;
           $term = (array)$term;
           taxonomy_save_term($term);    //will have any other modules update the term's URL aliases
@@ -1101,11 +1104,9 @@ function og_forum_get_forum_container($group_id) {
 function og_forum_is_admin($group) {
   global $user;
   $result = db_query(og_list_users_sql(0), $group->nid);
-  $cntall = db_result($result);
-  $cntpending = 0;
   while ($row = db_fetch_object($result)) {
     if ($user->uid == 1 && user_access('administer forums')) return TRUE;
-    if ($row->uid == $user->uid) {
+    if ($row->uid == $user->uid) { 
       if ($row->is_admin > 0) return TRUE;
     }
   }

@@ -37,16 +37,15 @@ function og_forum_schema() {
  */
 function og_forum_uninstall() {
   drupal_uninstall_schema('og_forum');
-  $vardel = FALSE;
-  $query1 = db_query('DROP TABLE {og_term}');
-  if(variable_del('forum_default_name') && variable_del('forum_default_container_yn') && variable_del('forum_default_container') && variable_del('forum_allow_public')
-  && variable_del('forum_all_public') && variable_del('forum_auto_public') && variable_del('forum_limit')) {
-    $vardel = TRUE;
-  }
-  if ($query1 && $vardel) {
-    drupal_set_message('The OG Forum module was uninstalled successfully.');
-  }
-  else {
-    drupal_set_message('There was an error removing the OG Forum database tables or variables.', 'error');
+
+// Delete variables
+  $variables = array(
+    'forum_default_name', 'forum_default_container_yn', 'forum_default_container',
+    'forum_allow_public', 'forum_all_public', 'forum_auto_public',
+    'forum_limit',
+
+  );
+  foreach ($variables as $variable) {
+    variable_del($variable);
   }
 }
