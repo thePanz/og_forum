@@ -132,7 +132,71 @@ function og_forum_theme() {
       'arguments' => array('tid' => NULL, 'topics' => NULL, 'sortby' => NULL,'forum_per_page' => NULL, 'gid' => NULL),
     ),
   );
-} 
+}
+
+
+/**
+ * Implimentation of hook_block()
+ *
+ * Creates a block to display forum information for a group.
+ */
+function og_forum_block($op = 'list', $delta = 0, $edit = array()) {
+  if($group_node = og_get_group_context()){
+    $nid = $group_node->nid;
+  }
+  switch ($op) {
+    case 'list':
+      $blocks[0]['info'] = t('Active forum topics in group');
+      $blocks[1]['info'] = t('New forum topics in group');
+      return $blocks;
+
+    case 'configure':
+      $form['og_forum_block_num_'. $delta] = array('#type' => 'select', '#title' => t('Number of topics'), '#default_value' => variable_get('og_forum_block_num_'. $delta, '5'), '#options' => drupal_map_assoc(array(2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20)));
+      return $form;
+
+    case 'save':
+      variable_set('og_forum_block_num_'. $delta, $edit['og_forum_block_num_'. $delta]);
+      break;
+
+    case 'view':
+      if (user_access('access content') && $nid) {  
+        switch ($delta) {
+          case 0:
+            $title = t('Active group forum topics');
+            $sql = "SELECT COUNT(*) FROM {node} n INNER JOIN {node_comment_statistics} l INNER JOIN {og_term} ot INNER JOIN {term_node} tn WHERE ot.nid = $nid AND ot.tid = tn.tid AND tn.nid = n.nid AND n.nid = l.nid AND n.status = 1 AND n.type = 'forum' ORDER BY l.last_comment_timestamp DESC";
+            $num_results = db_result(db_query($sql, $nid));
+            if ($num_results) {
+              $sql = db_rewrite_sql("SELECT n.nid, n.title, l.comment_count, l.last_comment_timestamp FROM {node} n INNER JOIN {node_comment_statistics} l INNER JOIN {og_term} ot INNER JOIN {term_node} tn WHERE ot.nid = $nid AND ot.tid = tn.tid AND tn.nid = n.nid AND n.nid = l.nid AND n.status = 1 AND n.type = 'forum' ORDER BY l.last_comment_timestamp DESC");
+              $result = db_query_range($sql, 0, variable_get('og_forum_block_num_0', '5')); 
+              $content = node_title_list($result);  
+            }           
+            break;
+
+          case 1:
+            $title = t('New group forum topics');
+            $sql = "SELECT COUNT(*) FROM {node} n INNER JOIN {node_comment_statistics} l INNER JOIN {og_term} ot INNER JOIN {term_node} tn WHERE ot.nid = $nid AND ot.tid = tn.tid AND tn.nid = n.nid AND n.nid = l.nid AND n.type = 'forum' AND n.status = 1 ORDER BY n.nid DESC";
+            $num_results = db_result(db_query($sql, $nid));
+            if ($num_results) {
+              $sql = db_rewrite_sql("SELECT n.nid, n.title, l.comment_count FROM {node} n INNER JOIN {node_comment_statistics} l INNER JOIN {og_term} ot INNER JOIN {term_node} tn WHERE ot.nid = $nid AND ot.tid = tn.tid AND tn.nid = n.nid AND n.nid = l.nid AND n.type = 'forum' AND n.status = 1 ORDER BY n.nid DESC");
+              $result = db_query_range($sql, 0, variable_get('og_forum_block_num_1', '5')); 
+              $content = node_title_list($result); 
+            }
+            break;
+        }
+
+        if ($content) {
+          $forum  = og_forum_get_forum_container($nid);
+          $content .= '<div class="more-link">'. l(t('more'), "forum/$forum") .'</div>';
+        }
+
+        $block['subject'] = $title;
+        $block['content'] = $content;
+
+        return $block;
+      }
+  }
+} //og_forum_block
+ 
 
 /**
  * Menu callback; allows us to set group context prior to loading a forum
@@ -452,7 +516,7 @@ function theme_og_forum_topic_list($tid, $topics, $sortby, $forum_per_page, $gid
         );
       }
       else {
-        $sql = "SELECT oa.nid, oa.is_public FROM {node} n INNER JOIN {og_ancestry} oa ON oa.nid = n.nid WHERE n.type = 'forum' AND n.nid = %d";
+        $sql = "SELECT oa.nid, COALESCE(oa.is_public, 1) AS is_public FROM {node} n LEFT JOIN {og_ancestry} oa ON oa.nid = n.nid WHERE n.nid = %d";
         $public_post = db_fetch_object(db_query($sql, $topic->nid));
         if (isset($public_post) && $public_post->is_public == 1 && !array_key_exists($gid, $user->og_groups)) {
           $rows[] = array(
@@ -1206,7 +1270,7 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
           }
           reset($the_rest->option);
           $option_key = key($the_rest->option);
-          if (!array_key_exists($option_key, $all_results)) {
+          if (is_array($all_results) && !array_key_exists($option_key, $all_results)) {
             unset($form['taxonomy'][$vid]['#options'][$key]);
           }
         } //check to see if the audience is required or optional. if optional, don't do the following two lines
@@ -1267,7 +1331,7 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
           }
           reset($the_rest->option);
           $option_key = key($the_rest->option);
-          if (array_key_exists($option_key, $all_results)) {
+          if (is_array($all_results) && array_key_exists($option_key, $all_results)) {
             unset($form['taxonomy'][$vid]['#options'][$key]);
           }
         }
