@@ -236,6 +236,9 @@ function og_forum_page($tid = 0) {
       else { 
         $topics = forum_get_topics($tid, $sortby, $forum_per_page);
       }
+    }
+    else {
+      $topics = array();
     } 
     return theme('og_forum_display', $forums, $topics, $parents, $tid, $sortby, $forum_per_page);
   }
@@ -391,8 +394,10 @@ function theme_og_forum_display($forums, $topics, $parents, $tid, $sortby, $foru
   $vocabulary = taxonomy_vocabulary_load(variable_get('forum_nav_vocabulary', '')); 
   $title = $vocabulary->name;
   // Breadcrumb navigation:
+  $gid = og_forum_gid_from_tid($tid); 
   $breadcrumb[] = l(t('Home'), NULL);
-  if ($gid !== NULL) {
+  if ($gid != NULL) {
+  	$node = node_load($gid);
   	$breadcrumb[] = l(t('Groups'), 'og');
     $breadcrumb[] = l(t("@title", array('@title' => $node->og_groups_names[0])), 'node/'. $node->og_groups[0]);
   }
@@ -1111,7 +1116,7 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
       }
       // If we're viewing a forum post in a group forum, set that
       // group as the context.
-      if ($page && $node->og_groups && $node->type == 'forum') {
+      if ($page && !empty($node->og_groups) && $node->type == 'forum') {
         og_set_group_context(node_load($node->og_groups[0]));
         
         if (is_numeric($node->tid)) {
@@ -1739,7 +1744,8 @@ function og_forum_is_public($tid) {
   $all_public = variable_get('forum_all_public', 0);
   $sql = "SELECT tid, public, nid FROM {og_term} WHERE tid = %d";
   $results = db_fetch_object(db_query($sql, $tid));
-  if (($results->public > PRIVATE_BY_GROUP_OWNER) || ($all_public)) {//I think this was too restrictive at using: ($results->public == 0 && $all_public)
+  if (!empty($results) && (($results->public > PRIVATE_BY_GROUP_OWNER) || ($all_public))) {
+  //I think this was too restrictive at using: ($results->public == 0 && $all_public)
     return 1;
   }
   else {
