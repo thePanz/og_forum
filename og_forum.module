@@ -1154,7 +1154,7 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
        $node->og_groups = array_keys($node->og_groups);  
      }
   }
-} // fun/Users/paulbooker/Subversion/Development/drupal6/sites/all/modules/og/og.modulection og_forum_nodeapi()
+} 
 
 /**
  * Retrieve container for given group
@@ -1224,7 +1224,7 @@ function og_forum_retroactively_apply() {
 /**
  * Implementation of hook_form_alter().
  */
-function og_forum_form_alter(&$form, &$form_state, $form_id) {
+function og_forum_form_alter(&$form, &$form_state, $form_id) {  
   // Auto-select group's forum when adding/editing a forum topic
   if ($form_id == 'forum_node_form') { 
     $group = og_get_group_context();  
@@ -1238,14 +1238,14 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
       }
     }
     $GID = $group->nid; 
-    if ($GID) {
+    if ($GID) {  
       $results = db_query('SELECT ot.tid, th.parent FROM {og_term} ot LEFT JOIN {term_hierarchy} th ON ot.tid = th.tid WHERE nid = %d ORDER BY tid ASC', $GID);
       while ($result = db_fetch_object($results)) {
         $all_results[$result->tid] = $result->parent;
       }
       $vid =  og_forum_get_vid(); 
       //set the forum selection drop down box 
-      if (arg(1) == 'add' && arg(3)) { 
+      if (arg(1) == 'add' && arg(3)) {    
         $term = arg(3);
         $form['taxonomy'][$vid]['#default_value'] = array($term);
       }
@@ -1268,7 +1268,7 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
           $form['taxonomy'][$vid]['#default_value'] = array($term);
         } 
       }
-      if (!user_access('administer forums')) {   
+      if (!user_access('administer forums')) {  
         foreach ($form['taxonomy'][$vid]['#options'] as $key => $the_rest) { 
           if ($key === '') {  
             continue;
@@ -1279,7 +1279,7 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
             unset($form['taxonomy'][$vid]['#options'][$key]);
           }
         } //check to see if the audience is required or optional. if optional, don't do the following two lines
-        if (variable_get('og_audience_required', FALSE) == 1) {  
+        if (variable_get('og_audience_required', FALSE) == 1) {    
           if (count($form['og_nodeapi']['visible']['og_groups']['#default_value'])) {
             drupal_add_js(drupal_get_path('module', 'og_forum'). '/og_forum.js');
             $options = $form['og_nodeapi']['visible']['og_groups']['#options'];
@@ -1287,17 +1287,11 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
             foreach ($groups as $key => $value) {
               $groups[$key] = (string)$value;
             }
-            unset($form['og_nodeapi']['visible']['og_groups']);
             foreach ($groups as $gid) {
               $titles[] = $options[$gid];
               $item_value = implode(', ', $titles);
             }
             $form['og_nodeapi']['visible']['og_groups_visible'] = array('#type' => 'item', '#title' => t('Audience'), '#value' => $item_value);
-            $assoc_groups = drupal_map_assoc($groups);
-            // this hidden element persists audience values during a Preview cycle. avoids errors on Preview.
-            $form['og_nodeapi']['invisible']['og_groups_hidden'] = array('#type' => 'hidden', '#value' => serialize($assoc_groups), '#attributes' => array('class' => 'og-audience-forum'));
-            // this 'value' element persists the audience value during submit process
-            $form['og_nodeapi']['invisible']['og_groups'] = array('#type' => 'value', '#value' => $assoc_groups);
             if ($form['og_nodeapi']['visible']['og_public']['#default_value'] == 1) {
               $form['og_nodeapi']['visible']['og_public']['#default_value'] = 1;
             }
@@ -1524,7 +1518,7 @@ function og_forum_form_forum(&$form_state, $edit, $group_id = 0, $tid = 0) {
 /**
   * Validate group id and term id values
   */
-function og_forum_form_validate($form, &$form_state) { 
+function og_forum_form_validate($form, &$form_state) {
   global $user;
   $form_values = $form_state['values']; 
   $error = true;
