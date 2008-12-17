@@ -398,8 +398,8 @@ function theme_og_forum_display($forums, $topics, $parents, $tid, $sortby, $foru
   $breadcrumb[] = l(t('Home'), NULL);
   if ($gid != NULL) {
   	$node = node_load($gid);
-  	$breadcrumb[] = l(t('Groups'), 'og');
-    $breadcrumb[] = l(t("@title", array('@title' => $node->og_groups_names[0])), 'node/'. $node->og_groups[0]);
+  	$breadcrumb[] = l(t('Groups'), 'og'); 
+    $breadcrumb[] = l(t("@title", array('@title' => $node->title)), 'node/'. $node->nid);
   }
   if ($tid) {
     $breadcrumb[] = l(t("@title", array('@title' => $title)), 'forum');
