@@ -1267,8 +1267,7 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
           $term = key($all_results);
           $form['taxonomy'][$vid]['#default_value'] = array($term);
         } 
-      }
-      if (!user_access('administer forums')) {  
+      } 
         foreach ($form['taxonomy'][$vid]['#options'] as $key => $the_rest) { 
           if ($key === '') {  
             continue;
@@ -1300,7 +1299,6 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
             }
           }
         }
-      }
     }
     else { 
       $results = db_query('SELECT ot.tid, th.parent FROM {og_term} ot LEFT JOIN {term_hierarchy} th ON ot.tid = th.tid ORDER BY tid ASC');
@@ -1429,7 +1427,7 @@ function og_forum_manage($gid) {
 function og_forum_form_main($type, $group_id, $tid) {
   $edit = array('group_id' => $group_id, 'parent' => $tid);
   if ($_POST['op'] == t('Delete') || $_POST['confirm']) {
-    return drupal_get_form('og_forum_confirm_delete', $edit['tid'], $group_id);
+    return drupal_get_form('og_forum_confirm_delete', $tid, $group_id);
   } 
   switch ($type) {
     case 'add':
@@ -1596,8 +1594,8 @@ function og_forum_taxonomy($op, $type, $obj) {
  *
  * @param $tid ID of the term to be deleted
  */
-function og_forum_confirm_delete($tid, $group_id) {
-  $term = taxonomy_get_term($tid);
+function og_forum_confirm_delete($form_state, $tid, $group_id) {
+;  $term = taxonomy_get_term($tid);
   $form['tid'] = array('#type' => 'value', '#value' => $tid);
   $form['name'] = array('#type' => 'value', '#value' => $term->name);
   $form['group_id'] = array('#type' => 'value', '#value' => $group_id);
@@ -1610,7 +1608,8 @@ function og_forum_confirm_delete($tid, $group_id) {
 /**
  * Implementation of forms api _submit call. Deletes a forum after confirmation.
  */
-function og_forum_confirm_delete_submit($form_id, $form_values) {
+function og_forum_confirm_delete_submit($form, &$form_state) {
+  $form_values = $form_state['values'];
   taxonomy_del_term($form_values['tid']);
   $group_id = og_forum_gid_from_tid($form_values['tid']);
   drupal_set_message(t('The forum %term and all sub-forums and associated posts have been deleted.', array('%term' => $form_values['name'])));
