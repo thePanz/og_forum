@@ -1334,8 +1334,9 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
         }
       }
     }
-    $groups = $form['og_nodeapi']['visible']['og_groups']; 
-    $form['og_nodeapi']['invisible']['og_groups'] = array('#type' => 'value', '#value' => $groups);
+    //TODO: removing these lines corrects the problem of  "you must join a group error when posting a forum topic to  a group" errors
+    //$groups = $form['og_nodeapi']['visible']['og_groups']; 
+    //$form['og_nodeapi']['invisible']['og_groups'] = array('#type' => 'value', '#value' => $groups);
     unset($form['og_nodeapi']['visible']['og_groups']);
     $form['taxonomy']['#collapsible'] = TRUE;
     $form['taxonomy']['#collapsed'] = TRUE;
@@ -1615,8 +1616,7 @@ function og_forum_confirm_delete_submit($form, &$form_state) {
   drupal_set_message(t('The forum %term and all sub-forums and associated posts have been deleted.', array('%term' => $form_values['name'])));
   watchdog('content', t('forum: deleted %term and all its sub-forums and associated posts.', array('%term' => $form_values['name'])));
   db_query('DELETE FROM {og_term} WHERE tid = %d', $form_values['tid']);
-  $return_address = $form_values['return'];
-  return $return_address;
+  $form_state['redirect'] = $form_values['return'];
 } // function og_forum_confirm_delete_submit()
 
 /**
