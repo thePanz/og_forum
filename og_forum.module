@@ -269,13 +269,10 @@ function og_forum_get_forums($tid = 0) {
   $_forums = taxonomy_get_tree(variable_get('forum_nav_vocabulary', ''), $tid);
 
   if (count($_forums)) {
-
     $counts = array();
-
     $sql = "SELECT r.tid, COUNT(n.nid) AS topic_count, SUM(l.comment_count) AS comment_count FROM {node} n INNER JOIN {node_comment_statistics} l ON n.nid = l.nid INNER JOIN {term_node} r ON n.nid = r.nid WHERE n.status = 1 AND n.type = 'forum' GROUP BY r.tid";
-    //$sql = db_rewrite_sql($sql);
-    $_counts = db_query($sql, $forum->tid);
-    while ($count = db_fetch_object($_counts)) {
+    $result = db_query($sql);
+    while ($count = db_fetch_object($result)) {
       $counts[$count->tid] = $count;
     }
   }
@@ -298,7 +295,6 @@ function og_forum_get_forums($tid = 0) {
     // table1 INNER JOIN table2 INNER JOIN table3 ON table2_criteria ON table3_criteria
     // used to join node_comment_statistics to users.
     $sql = "SELECT ncs.last_comment_timestamp, IF (ncs.last_comment_uid != 0, u2.name, ncs.last_comment_name) AS last_comment_name, ncs.last_comment_uid FROM {node} n INNER JOIN {users} u1 ON n.uid = u1.uid INNER JOIN {term_node} tn ON n.nid = tn.nid INNER JOIN {node_comment_statistics} ncs ON n.nid = ncs.nid INNER JOIN {users} u2 ON ncs.last_comment_uid=u2.uid WHERE n.status = 1 AND n.type='forum' AND tn.tid = %d ORDER BY ncs.last_comment_timestamp DESC";
-    //$sql = db_rewrite_sql($sql);
     $topic = db_fetch_object(db_query_range($sql, $forum->tid, 0, 1));
 
     $last_post = new stdClass();
@@ -311,7 +307,7 @@ function og_forum_get_forums($tid = 0) {
   }
 
   return $forums;
-} // function og_forum_get_forums()
+}
 
 /**
  * Copied forum_get_topics from the forum module in order to bypass node_access removing topics from listings when set to publicly viewable.
@@ -379,7 +375,7 @@ function og_forum_get_topics($tid, $sortby, $forum_per_page) {
   }
 
   return $topics;
-} // function og_forum_get_topics()
+}
 
 /**
  * Format the forum body.
@@ -1625,7 +1621,9 @@ function og_forum_confirm_delete_submit($form, &$form_state) {
 function _og_forum_manage_breadcrumb($group, $op = NULL) {  
   global $vocabulary;	
   $breadcrumb[] = l(t('Home'), NULL);
-  $breadcrumb[] = l(t("@name", array('@name' => $vocabulary->name)), 'forum');
+  if ($vocabulary->name) {
+    $breadcrumb[] = l(t("@name", array('@name' => $vocabulary->name)), 'forum');
+  }
   $breadcrumb[] = l(t("@name", array('@name' => $group->title)), 'node/' .$group->nid);
   
   switch ($op) {
@@ -1633,7 +1631,7 @@ function _og_forum_manage_breadcrumb($group, $op = NULL) {
       $breadcrumb[] = l(t("Add @title forums", array('@title' => $group->title)), 'og_forum/manage/' .$group->nid);
       break;
     case 'edit':
-      $breadcrumb[] = l(t("Edit @title forums", array('@title' => $group->title)), 'og_forum/manage' .$group->nid);
+      $breadcrumb[] = l(t("Edit @title forums", array('@title' => $group->title)), 'og_forum/manage/' .$group->nid);
       break;
     case 'default':
       $breadcrumb[] = l(t("Manage @title forums", array('@title' => $group->title)), 'og_forum/manage/' .$group->nid);
