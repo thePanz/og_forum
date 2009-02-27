@@ -1330,9 +1330,8 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
         }
       }
     }
-    //TODO: removing these lines corrects the problem of  "you must join a group error when posting a forum topic to  a group" errors
-    //$groups = $form['og_nodeapi']['visible']['og_groups']; 
-    //$form['og_nodeapi']['invisible']['og_groups'] = array('#type' => 'value', '#value' => $groups);
+    $groups = $form['og_nodeapi']['visible']['og_groups']; 
+    $form['og_nodeapi']['invisible']['og_groups'] = array('#type' => 'value', '#value' => $groups);
     unset($form['og_nodeapi']['visible']['og_groups']);
     $form['taxonomy']['#collapsible'] = TRUE;
     $form['taxonomy']['#collapsed'] = TRUE;
