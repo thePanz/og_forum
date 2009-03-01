@@ -1330,9 +1330,9 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
         }
       }
     }
-    $groups = $form['og_nodeapi']['visible']['og_groups']; 
-    $form['og_nodeapi']['invisible']['og_groups'] = array('#type' => 'value', '#value' => $groups);
-    unset($form['og_nodeapi']['visible']['og_groups']);
+    //$groups = $form['og_nodeapi']['visible']['og_groups']; 
+    //$form['og_nodeapi']['invisible']['og_groups'] = array('#type' => 'value', '#value' => $groups);
+    //unset($form['og_nodeapi']['visible']['og_groups']);
     $form['taxonomy']['#collapsible'] = TRUE;
     $form['taxonomy']['#collapsed'] = TRUE;
   }
