@@ -207,7 +207,7 @@ function og_forum_page($tid = 0) {
     og_forum_set_og_group_context_from_tid($tid);
     $gid = og_forum_gid_from_tid($tid); 
     if ($gid) {
-      if (!array_key_exists($gid, $user->og_groups) && ($user->uid != 1) && !(user_access('adminster forums')) && !og_forum_is_public($tid)) {
+      if (!array_key_exists($gid, $user->og_groups) && ($user->uid != 1) && !(user_access('administer forums')) && !og_forum_is_public($tid)) {
         return drupal_access_denied();
       }
       og_set_theme($gid);
