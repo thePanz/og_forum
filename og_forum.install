@@ -18,9 +18,9 @@ function og_forum_install() {
 function og_forum_schema() {
   $schema['og_term'] = array(
     'fields' => array(
-      'tid' => array('type' => 'int', 'length' => '10','unsigned' => TRUE, 'not null' => TRUE, 'default' => '0'), 
-      'nid' => array('type' => 'int', 'length' => '10','unsigned' => TRUE, 'not null' => TRUE, 'default' => '0'),
-      'public' => array('type' => 'int', 'length' => '1','unsigned' => TRUE, 'not null' => TRUE, 'default' => '0'),
+      'tid' => array('type' => 'int', 'disp-width' => '10','unsigned' => TRUE, 'not null' => TRUE, 'default' => '0'), 
+      'nid' => array('type' => 'int', 'disp-width' => '10','unsigned' => TRUE, 'not null' => TRUE, 'default' => '0'),
+      'public' => array('type' => 'int', 'disp-width' => '1','unsigned' => TRUE, 'not null' => TRUE, 'default' => '0'),
     ),   
     'primary key' => array('tid','nid')
   );
