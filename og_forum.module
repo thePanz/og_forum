@@ -1255,46 +1255,49 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
       elseif (arg(1) == 'add' && !arg(3)) { 
         $first = reset($all_results);
         if ($first == 0) {
-          $next = next($all_results);
-          $term = key($all_results);
-          $form['taxonomy'][$vid]['#default_value'] = array($term);
+          next($all_results);
         }
-        else {
-          $term = key($all_results);
-          $form['taxonomy'][$vid]['#default_value'] = array($term);
-        } 
+        $term = key($all_results);
+        $form['taxonomy'][$vid]['#default_value'] = array($term); 
       } 
-        foreach ($form['taxonomy'][$vid]['#options'] as $key => $the_rest) { 
-          if ($key === '') {  
-            continue;
-          }
-          reset($the_rest->option);
-          $option_key = key($the_rest->option);
-          if (is_array($all_results) && !array_key_exists($option_key, $all_results)) {
-            unset($form['taxonomy'][$vid]['#options'][$key]);
-          }
-        } //check to see if the audience is required or optional. if optional, don't do the following two lines
-        if (variable_get('og_audience_required', FALSE) == 1) {    
-          if (count($form['og_nodeapi']['visible']['og_groups']['#default_value'])) {
-            drupal_add_js(drupal_get_path('module', 'og_forum'). '/og_forum.js');
-            $options = $form['og_nodeapi']['visible']['og_groups']['#options'];
-            $groups = $form['og_nodeapi']['visible']['og_groups']['#default_value'];
-            foreach ($groups as $key => $value) {
-              $groups[$key] = (string)$value;
-            }
-            foreach ($groups as $gid) {
-              $titles[] = $options[$gid];
-              $item_value = implode(', ', $titles);
-            }
-            $form['og_nodeapi']['visible']['og_groups_visible'] = array('#type' => 'item', '#title' => t('Audience'), '#value' => $item_value);
-            if ($form['og_nodeapi']['visible']['og_public']['#default_value'] == 1) {
-              $form['og_nodeapi']['visible']['og_public']['#default_value'] = 1;
-            }
-            else {
-              $form['og_nodeapi']['visible']['og_public']['#default_value'] = 0;
-            }
-          }
+      foreach ($form['taxonomy'][$vid]['#options'] as $key => $the_rest) { 
+        if ($key === '') {  
+          continue;
         }
+        reset($the_rest->option);
+        $option_key = key($the_rest->option);
+        if (is_array($all_results) && !array_key_exists($option_key, $all_results)) {
+          unset($form['taxonomy'][$vid]['#options'][$key]);
+        }
+       }  
+       //check to see if the audience is required or optional.
+       if (variable_get('og_audience_required', FALSE) == 1) {   
+         if (count($form['og_nodeapi']['visible']['og_groups']['#default_value'])) {
+           drupal_add_js(drupal_get_path('module', 'og_forum'). '/og_forum.js');
+           $options = $form['og_nodeapi']['visible']['og_groups']['#options'];
+           $groups = $form['og_nodeapi']['visible']['og_groups']['#default_value'];
+           foreach ($groups as $key => $value) {
+             $groups[$key] = (string)$value;
+           } // TODO: Is this foreach of any use ?
+           foreach ($groups as $gid) {
+             $titles[] = $options[$gid];
+             $item_value = implode(', ', $titles);
+           }
+           $form['og_nodeapi']['visible']['og_groups_visible'] = array('#type' => 'item', '#title' => t('Audience'), '#value' => $item_value); 
+           $assoc_groups = drupal_map_assoc($groups);
+           // TODO: Is this if/else of any use ? 
+           if ($form['og_nodeapi']['visible']['og_public']['#default_value'] == 1) {
+             $form['og_nodeapi']['visible']['og_public']['#default_value'] = 1;
+           }
+           else {
+               $form['og_nodeapi']['visible']['og_public']['#default_value'] = 0;
+           }
+         }
+         // When you make a group forum post it can only be made into the group the forum is affiliated with.
+         unset($form['og_nodeapi']['visible']['og_groups']);
+         // this 'value' element persists the audience value during submit process
+	     $form['og_nodeapi']['invisible']['og_groups'] = array('#type' => 'value', '#value' => $assoc_groups);
+       }
     }
     else { 
       $results = db_query('SELECT ot.tid, th.parent FROM {og_term} ot LEFT JOIN {term_hierarchy} th ON ot.tid = th.tid ORDER BY tid ASC');
@@ -1330,11 +1333,9 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
         }
       }
     }
-    //$groups = $form['og_nodeapi']['visible']['og_groups']; 
-    //$form['og_nodeapi']['invisible']['og_groups'] = array('#type' => 'value', '#value' => $groups);
-    //unset($form['og_nodeapi']['visible']['og_groups']);
-    $form['taxonomy']['#collapsible'] = TRUE;
-    $form['taxonomy']['#collapsed'] = TRUE;
+    //TODO: These looks to be redundant
+    //$form['taxonomy']['#collapsible'] = TRUE;
+    //$form['taxonomy']['#collapsed'] = TRUE;
   }
   if ($form_id == 'forum_form_container') {
     $allow_public = variable_get('forum_allow_public', 0);
