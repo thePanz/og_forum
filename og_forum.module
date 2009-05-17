@@ -517,7 +517,7 @@ function theme_og_forum_topic_list($tid, $topics, $sortby, $forum_per_page, $gid
         );
       }
       else {
-        $sql = "SELECT oa.nid, COALESCE(oa.is_public, 1) AS is_public FROM {node} n LEFT JOIN {og_ancestry} oa ON oa.nid = n.nid WHERE n.nid = %d";
+        $sql = "SELECT oa.nid, COALESCE(oa.og_public, 1) AS is_public FROM {og_access_post} oap WHERE oap.nid = %d";
         $public_post = db_fetch_object(db_query($sql, $topic->nid));
         if (isset($public_post) && $public_post->is_public == 1 && !array_key_exists($gid, $user->og_groups)) {
           $rows[] = array(
@@ -696,7 +696,7 @@ function og_forum_settings_submit($form, &$form_state) {
     $auto_public = variable_get('forum_auto_public', 0);
     if ($auto_public) {
       //go through all existing forums and where a node has been made public, set the forum's publicity to PUBLIC_AUTO
-      $sql = "SELECT DISTINCT tn.tid, oa.group_nid FROM {node} n INNER JOIN {og_ancestry} oa ON oa.nid = n.nid INNER JOIN {term_node} tn ON tn.nid = oa.nid WHERE n.type = 'forum' AND oa.is_public = 1";
+      $sql = "SELECT DISTINCT tn.tid, oa.group_nid FROM {node} n INNER JOIN {og_ancestry} oa ON oa.nid = n.nid INNER JOIN {og_access_post} oap ON oap.nid = oa.nid INNER JOIN {term_node} tn ON tn.nid = oa.nid  WHERE n.type = 'forum' AND oap.og_public = 1";
       $results = db_query($sql);
       while ($result = db_fetch_object($results)) {
         $gid = $result->group_nid;
@@ -1025,8 +1025,8 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
         elseif ($node->og_public == PRIVATE_DEFAULT) {
           if ($forums[$node->tid] == PUBLIC_AUTO) {//the forum is in an auto settable state
             $should_be_public = FALSE;
-            $sql3 = "SELECT DISTINCT COUNT(oa.nid) FROM {node} n INNER JOIN {og_ancestry} oa ON oa.nid = n.nid INNER JOIN {term_node} tn ON tn.nid = oa.nid
-            WHERE n.type = 'forum' AND oa.is_public = 1 AND tn.tid = %d";
+            $sql3 = "SELECT DISTINCT COUNT(oap.nid) FROM {node} n INNER JOIN {og_access_post} oap ON oap.nid = n.nid INNER JOIN {term_node} tn ON tn.nid = oap.nid
+			WHERE n.type = 'forum' AND oap.og_public = 1 AND tn.tid = %d";
             if (!$count = db_result(db_query($sql3, $node->tid))) {
               db_query($sql2, PRIVATE_DEFAULT, $node->tid);
               foreach ($forums as $tid => $public) {
@@ -1078,8 +1078,8 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
         elseif ($node->og_public == 0) {
           if ($forums[$node->tid] == PUBLIC_AUTO) {//the forum is in an auto settable state
             $should_be_public = FALSE;
-            $sql3 = "SELECT DISTINCT COUNT(oa.nid) FROM {node} n INNER JOIN {og_ancestry} oa ON oa.nid = n.nid INNER JOIN {term_node} tn ON tn.nid = oa.nid
-            WHERE n.type = 'forum' AND oa.is_public = 1 AND tn.tid = %d";
+            $sql3 = "SELECT DISTINCT COUNT(oap.nid) FROM {node} n INNER JOIN {og_access_post} oap ON oap.nid = n.nid INNER JOIN {term_node} tn ON tn.nid = oap.nid
+			WHERE n.type = 'forum' AND oap.og_public = 1 AND tn.tid = %d";
             if (!$count = db_result(db_query($sql3, $node->tid))) {
               db_query($sql2, PRIVATE_DEFAULT, $node->tid);
               foreach ($forums as $tid => $public) {
