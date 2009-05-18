@@ -517,7 +517,7 @@ function theme_og_forum_topic_list($tid, $topics, $sortby, $forum_per_page, $gid
         );
       }
       else {
-        $sql = "SELECT oa.nid, COALESCE(oa.og_public, 1) AS is_public FROM {og_access_post} oap WHERE oap.nid = %d";
+        $sql = "SELECT oap.nid, COALESCE(oap.og_public, 1) AS is_public FROM {og_access_post} oap WHERE oap.nid = %d";
         $public_post = db_fetch_object(db_query($sql, $topic->nid));
         if (isset($public_post) && $public_post->is_public == 1 && !array_key_exists($gid, $user->og_groups)) {
           $rows[] = array(
