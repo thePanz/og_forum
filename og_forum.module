@@ -753,100 +753,20 @@ function og_forum_gid_from_tid($tid=0) {
 /**
  * Implementation of hook_db_rewrite_sql().
  *
- * Restricts forum viewing by organic group.
- * 
- * How this works:
- * First, each small part-
- * The forums in groups OTHER users belong to: SELECT DISTINCT ogt.tid FROM og_term ogt INNER JOIN og_uid ogu ON ogt.nid = ogu.nid AND ogu.uid != $user->uid;
- * The forums in groups USER belongs to: SELECT DISTINCT ogt.tid FROM og_term ogt INNER JOIN og_uid ogu ON ogt.nid = ogu.nid AND ogu.uid = $user->uid;
- * The forums in groups user belongs to, but is INACTIVE: SELECT DISTINCT ogt.tid FROM og_term ogt INNER JOIN og_uid ogu ON ogt.nid = ogu.nid AND ogu.uid = $user->uid WHERE ogu.is_active = 0;
- * 
- * Put the first two together-
- * The forums in groups the user DOES NOT belong to.
- * SELECT x.tid FROM (SELECT DISTINCT ogt.tid FROM og_term ogt INNER JOIN og_uid ogu ON ogt.nid = ogu.nid AND ogu.uid != $user->uid) x 
- * WHERE x.tid NOT IN (SELECT DISTINCT ogt.tid FROM og_term ogt INNER JOIN og_uid ogu ON ogt.nid = ogu.nid AND ogu.uid = $user->uid));
- * 
- * Put it all together and you can read it like this: WHERE t.tid NOT IN (The forums in groups the user DOES NOT belong to) 
- * AND t.tid NOT IN (The forums in groups user belongs to, but is INACTIVE)
- * 
- * This should show all forums for which the user is a group member as well as those forums in the site-wide forums.
- */
+*/
 function og_forum_db_rewrite_sql($query, $primary_table = 'n', $primary_field = 'nid') {
-  global $user;
-  $restrict = FALSE;
-  $restrict2 = FALSE;
-  if (module_exists('og_user_roles')) {
-    $gidx = $_GET['gids'];
-    $typex = $_GET['type'];
-    $tidx = $_GET['tid'];
-  }
-  else {
-    $gidx = NULL;
-    $typex = NULL;
-    $tidx = NULL;
-  }
   if ($primary_field == 'tid') {
-    // Only do this on forum nodes
-    if (((arg(0) == 'forum') || (arg(0) == 'og_forum') || (db_result(db_query('SELECT type FROM {node} WHERE nid = %d', arg(1))) == 'forum')) && ($user->uid != 1) && !(user_access('administer forums'))) {
-      $restrict = TRUE;
-    }
-    elseif ((arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum' && arg(3)) && ($user->uid != 1) && !(user_access('administer forums'))) {   
-      $restrict = TRUE;
-      $restrict2 = TRUE;
-    }
-    elseif ((arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum') && ($user->uid != 1) && !(user_access('administer forums'))) {
-      $restrict = TRUE;
-    }
-    elseif ((arg(0) == 'node' && arg(1) == 'ognodeadd' && $typex == 'forum' && $tidx != NULL) && ($user->uid != 1) && !(user_access('administer forums'))) {//for og_user_roles compatibility
-      $restrict = TRUE;
-      $restrict2 = TRUE;
-    }
-    elseif ((arg(0) == 'node' && arg(1) == 'ognodeadd' && $typex == 'forum') && ($user->uid != 1) && !(user_access('administer forums'))) {//for og_user_roles compatibility
-      $restrict = TRUE;
-    }
-    // If on a forum node, prevent display of all forums; only the ones for this organic group
-    // The forum vocab should have a lower weight than any other vocabulary assigned to forum nodes.
-    static $og_vocab = FALSE;
-    $all_public = variable_get('forum_all_public', 0);
-    if ($restrict && $user->uid != 0 && !$all_public) {
-      //This query and the one below are what makes regular forums work side by side with og forums.
-      //Esentially, instead of sequentially restricting our selection based on whether the forum is in an organic group,
-      //we find which organic group forums we don't want to show and remove them from the site-wide forum list.
-      //What remains are all regular forums, plus those the user is subscribed to in each group and which is_active is set to 1.  
-      $return['where'] = 't.tid NOT IN (SELECT x.tid FROM (SELECT DISTINCT(ogt.tid) FROM {og_term} ogt INNER JOIN {og_uid} ogu ON ogt.nid = ogu.nid AND ogu.uid != ' .$user->uid. ' AND ogt.public < 2) x
-      WHERE x.tid NOT IN (SELECT DISTINCT(ogt.tid) FROM {og_term} ogt INNER JOIN {og_uid} ogu ON ogt.nid = ogu.nid AND (ogt.public > 1 OR ogu.uid = ' .$user->uid. '))) 
-      AND t.tid NOT IN (SELECT DISTINCT(ogt.tid) FROM {og_term} ogt INNER JOIN {og_uid} ogu ON ogt.nid = ogu.nid AND ogu.uid = ' .$user->uid. ' WHERE ogu.is_active = 0)';
-      if ($restrict2) {
-        $og_nid = og_forum_gid_from_tid(arg(3));
-        if ($og_nid && !$og_vocab) {
-          $og_vocab = TRUE;
-          //Same as above, except without removing is_active == 0 forums since we are looking for a particular node.
-          //Need to put the join in here since we need to match ogt.nid
-          //TODO do I need to add the ogt.public checks here or not?
-          $return['join'] = "LEFT JOIN {og_term} ogt ON " .$primary_table. ".tid = ogt.tid";
-          $return['where'] = "t.tid NOT IN (SELECT x.tid FROM
-            (SELECT DISTINCT(ogt.tid) FROM {og_term} ogt INNER JOIN {og_uid} ogu ON ogt.nid = ogu.nid AND ogu.uid != ' .$user->uid. ') x
-            WHERE x.tid NOT IN (SELECT DISTINCT(ogt.tid) FROM {og_term} ogt INNER JOIN {og_uid} ogu ON ogt.nid = ogu.nid AND ogu.uid = ' .$user->uid. ')) 
-            AND ogt.nid = $og_nid";
-        }
-      }
+    if (!$_GET['gids']) {
+      $return['join'] = "LEFT JOIN {og_term} ogt ON t.tid = ogt.tid";
+      $return['where'] = "ogt.nid IS NULL";
+      if ($og_forum_container = variable_get('forum_default_container', FALSE)) {
+	    $return['where'] .= " AND t.tid != $og_forum_container";
+	  }
       $return['distinct'] = TRUE;
       return $return;
-    }
-    elseif ($restrict && !$all_public){
-      //anonymous users should be able to at least see the site-wide and other public forums
-      $return['where'] = 't.tid NOT IN (SELECT DISTINCT ogt.tid FROM {og_term} ogt WHERE public < 2)';
-      //we shouldn't need to modify anything further if they request a specific node from a forum that is in
-      //a group forum as the above 'where' should weed it out; i.e. don't need 'join' in a $restrict2 'if'
-      $return['distinct'] = TRUE;
-      return $return;
-    }
-    else {
-      $og_vocab = FALSE;
-      return;
     }
   }
-} // function og_forum_db_rewrite_sql()
+}// function og_forum_db_rewrite_sql()
 
 /**
  * Implementation of hook_nodeapi().
