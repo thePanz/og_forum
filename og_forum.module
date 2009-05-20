@@ -386,7 +386,7 @@ function og_forum_get_topics($tid, $sortby, $forum_per_page) {
  */
 function theme_og_forum_display($forums, $topics, $parents, $tid, $sortby, $forum_per_page) { 
   global $user;
-  _og_forum_set_set_breadcrumb($tid,$parents); 
+  _og_forum_set_breadcrumb($tid,$parents); 
   if (count($forums) || count($parents)) { 
     $output  = '<div id="forum">';
     $output .= '<ul>';
@@ -1016,7 +1016,7 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
         // Breadcrumb navigation:
         global $_menu;
         if (og_get_group_context()) { 
-	      _og_forum_set_set_breadcrumb($tid,$parents);  
+	      _og_forum_set_breadcrumb($tid,$parents);  
         }
         drupal_set_title(check_plain($node->title));
         break;
@@ -1032,8 +1032,21 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
   }
 } 
 
+/**
+ * Implementation of hook_comment().
+ *
+ */
+function og_forum_comment(&$a1, $op) { 
+  $nid = $a1->nid;
+  $node = node_load($nid);
+  if (is_numeric($node->tid)) {
+    $tid = $node->tid;
+    $parents = taxonomy_get_parents_all($tid);
+    _og_forum_set_breadcrumb($tid,$parents);
+  }	
+}
 
-function _og_forum_set_set_breadcrumb($tid,$parents){
+function _og_forum_set_breadcrumb($tid,$parents){
   // forum list, topics list, topic browser and 'add new topic' link
   $vocabulary = taxonomy_vocabulary_load(variable_get('forum_nav_vocabulary', '')); 
   $title = $vocabulary->name;
