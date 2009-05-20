@@ -386,33 +386,7 @@ function og_forum_get_topics($tid, $sortby, $forum_per_page) {
  */
 function theme_og_forum_display($forums, $topics, $parents, $tid, $sortby, $forum_per_page) { 
   global $user;
-  // forum list, topics list, topic browser and 'add new topic' link
-  $vocabulary = taxonomy_vocabulary_load(variable_get('forum_nav_vocabulary', '')); 
-  $title = $vocabulary->name;
-  // Breadcrumb navigation:
-  $gid = og_forum_gid_from_tid($tid); 
-  $breadcrumb[] = l(t('Home'), NULL);
-  if ($gid != NULL) {
-  	$node = node_load($gid);
-  	$breadcrumb[] = l(t('Groups'), 'og'); 
-    $breadcrumb[] = l(t("@title", array('@title' => $node->title)), 'node/'. $node->nid);
-  }
-  if ($tid) {
-    $breadcrumb[] = l(t("@title", array('@title' => $title)), 'forum');
-  }
-  if ($parents) {
-    $parents = array_reverse($parents);
-    foreach ($parents as $p) {
-      if ($p->tid == $tid) {
-        $title = $p->name;
-      }
-      else {
-        $breadcrumb[] = l(t("@title", array('@title' => $p->name)), 'forum/' .$p->tid);
-      }
-    }
-  }
-  drupal_set_title(check_plain($title));
-  drupal_set_breadcrumb($breadcrumb);  
+  _og_forum_set_set_breadcrumb($tid,$parents); 
   if (count($forums) || count($parents)) { 
     $output  = '<div id="forum">';
     $output .= '<ul>';
@@ -756,7 +730,7 @@ function og_forum_gid_from_tid($tid=0) {
 */
 function og_forum_db_rewrite_sql($query, $primary_table = 'n', $primary_field = 'nid') {
   if ($primary_field == 'tid') {
-    if (!$_GET['gids']) {
+    if (arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum' && !$_GET['gids']) {
       $return['join'] = "LEFT JOIN {og_term} ogt ON t.tid = ogt.tid";
       $return['where'] = "ogt.nid IS NULL";
       if ($og_forum_container = variable_get('forum_default_container', FALSE)) {
@@ -1041,22 +1015,8 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
         $parents = taxonomy_get_parents_all($tid);
         // Breadcrumb navigation:
         global $_menu;
-        if (isset($_menu)) {
-          $breadcrumb = array();
-          $breadcrumb[] = array('path' => "og", 'title' => t('Groups'));
-          $breadcrumb[] = array('path' => "node/". $node->og_groups[0], 'title' => $node->og_groups_names[0]);
-          if ($tid) {
-            $breadcrumb[] = array('path' => 'forum', 'title' => $title);
-          }
-          if ($parents) {
-            $parents = array_reverse($parents);
-            foreach ($parents as $p) {
-              $breadcrumb[] = array('path' => 'forum/' .$p->tid, 'title' => $p->name);          
-            }        
-          }
-          $breadcrumb[] = array('path' => "node/$node->nid", 'title' => $node->title);
-          $breadcrumb[] = array('path' => $_GET['q']);
-          drupal_set_breadcrumb($breadcrumb);
+        if (og_get_group_context()) { 
+	      _og_forum_set_set_breadcrumb($tid,$parents);  
         }
         drupal_set_title(check_plain($node->title));
         break;
@@ -1071,6 +1031,38 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
      }
   }
 } 
+
+
+function _og_forum_set_set_breadcrumb($tid,$parents){
+  // forum list, topics list, topic browser and 'add new topic' link
+  $vocabulary = taxonomy_vocabulary_load(variable_get('forum_nav_vocabulary', '')); 
+  $title = $vocabulary->name;
+  // Breadcrumb navigation:
+  $gid = og_forum_gid_from_tid($tid); 
+  $breadcrumb[] = l(t('Home'), NULL);
+  if ($gid != NULL) {
+    $node = node_load($gid);
+	$breadcrumb[] = l(t('Groups'), 'og'); 
+	$breadcrumb[] = l(t("@title", array('@title' => $node->title)), 'node/'. $node->nid);
+  }
+  if ($tid) {
+    $breadcrumb[] = l(t("@title", array('@title' => $title)), 'forum');
+  }
+  if ($parents) {
+    $parents = array_reverse($parents);
+	foreach ($parents as $p) {
+	  if ($p->tid == $tid) {
+	    $title = $p->name;
+	  }
+	  else {
+	    $breadcrumb[] = l(t("@title", array('@title' => $p->name)), 'forum/' .$p->tid);
+	  }
+    }
+  }
+  drupal_set_title(check_plain($title));
+  drupal_set_breadcrumb($breadcrumb);	
+}
+
 
 /**
  * Retrieve container for given group
