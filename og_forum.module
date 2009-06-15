@@ -755,25 +755,9 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
       }
       break;
     case 'prepare':
-      if (module_exists('og_user_roles')) {
-        $gidx = $_GET['gids'];
-        $typex = $_GET['type'];
-        $tidx = $_GET['tid'];
-      }
-      else {
-        $gidx = NULL;
-        $typex = NULL;
-        $tidx = NULL;
-      }
       if (arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum' && arg(3)) {
         if (!og_get_group_context()) {
           og_forum_set_og_group_context_from_tid(arg(3));
-          //return FALSE;
-        }
-      }
-      elseif (arg(0) == 'node' && arg(1) == 'ognodeadd' && $typex == 'forum' && $tidx != NULL) {//for og_user_roles compatibility
-        if (!og_get_group_context()) {
-          og_forum_set_og_group_context_from_tid($tidx);
           //return FALSE;
         }
       }
@@ -1173,10 +1157,6 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
       elseif (arg(2) == 'edit') { 
         $term = $form['taxonomy'][$vid]['#default_value'][0];
       }
-      elseif (arg(1) == 'ognodeadd') {//for og_user_roles compatibility
-        $term = $_GET['tid'];
-        $form['taxonomy'][$vid]['#default_value'] = array($term);
-      }
       elseif (arg(1) == 'add' && !arg(3)) { 
         $first = reset($all_results);
         if ($first == 0) {
@@ -1239,11 +1219,6 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
       elseif (arg(2) == 'edit') { 
         $cut = TRUE;
         $term = $form['taxonomy'][$vid]['#default_value'][0];
-      }
-      elseif (arg(1) == 'ognodeadd') {//for og_user_roles compatibility
-        $cut = TRUE;
-        $term = $_GET['tid'];
-        $form['taxonomy'][$vid]['#default_value'] = array($term);
       }
       if (!user_access('administer forums') && $cut) { 
         foreach ($form['taxonomy'][$vid]['#options'] as $key => $the_rest) {
