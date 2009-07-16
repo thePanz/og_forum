@@ -100,6 +100,13 @@ function og_forum_menu() {
     'access callback' =>  'og_forum_access_privileges_2',
     'access arguments' => array(3),
     'type' => MENU_CALLBACK
+  );
+  $items['node/%og_forum_group_type/forum'] = array(
+    'title' => 'Forums',
+    'page callback' => 'og_forum_page',
+    'page arguments' => array(1),
+    'access callback'   => TRUE,
+    'type' => MENU_LOCAL_TASK
   ); 
   return $items;
 } // function og_forum_menu()
@@ -119,6 +126,19 @@ function og_forum_access_privileges_3 ($gid, $tid) {
   $group = node_load($gid);
   return ((og_forum_is_admin($group) && user_access('admin own group forums') && !og_forum_forum_limit_reached($tid)) || user_access('administer forums'));
 } // took off a ) bracket after the end of user_access('admin own group forums') , is this right ?? 		
+
+function og_forum_group_type_load($arg) {
+  $node = node_load($arg);
+  if (og_is_group_type($node->type)) {
+     global $user;
+     $tid = og_forum_get_forum_container($arg);
+     if (og_forum_is_public($tid) || array_key_exists($arg, $user->og_groups) || $user->uid == 1 || user_access('administer forums'))
+       return $tid;
+     else
+       return FALSE;
+  }
+  return FALSE;
+}
 
 function og_forum_theme() {
   return array(
@@ -265,6 +285,7 @@ function og_forum_page($tid = 0) {
  *   Array of object containing the forum information.
  */
 function og_forum_get_forums($tid = 0) {
+  global $user;	
   $forums = array();
   $_forums = taxonomy_get_tree(variable_get('forum_nav_vocabulary', ''), $tid);
 
@@ -278,6 +299,10 @@ function og_forum_get_forums($tid = 0) {
   }
 
   foreach ($_forums as $forum) {
+	$gid = og_forum_gid_from_tid($forum->tid);
+	if (!og_forum_is_public($forum->tid) && !array_key_exists($gid, $user->og_groups) && $user->uid != 1 && !user_access('administer forums')) {
+	  continue;
+	}
     if (in_array($forum->tid, variable_get('forum_containers', array()))) {
       $forum->container = 1;
     }
