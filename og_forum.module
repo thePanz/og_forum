@@ -42,7 +42,8 @@ function og_forum_menu() {
   $items['forum'] = array(
     'title' => t('Forums'),
     'page callback' => 'og_forum_page',
-    'access arguments' => array('access content'),
+    'access arguments' => array(1),
+    'access callback' =>  'og_forum_access_forum_page',
     'type' => MENU_SUGGESTED_ITEM,
   );
   $items['admin/og/og_forum'] = array(
@@ -103,7 +104,7 @@ function og_forum_menu() {
   );
   $items['node/%og_forum_group_type/forum'] = array(
     'title' => 'Forums',
-    'page callback' => 'og_forum_page',
+    'page callback' => 'drupal_goto',
     'page arguments' => array(1),
     'access callback'   => TRUE,
     'type' => MENU_LOCAL_TASK
@@ -133,7 +134,7 @@ function og_forum_group_type_load($arg) {
      global $user;
      $tid = og_forum_get_forum_container($arg);
      if (og_forum_is_public($tid) || array_key_exists($arg, $user->og_groups) || $user->uid == 1 || user_access('administer forums'))
-       return $tid;
+       return 'forum/'.$tid;
      else
        return FALSE;
   }
@@ -222,20 +223,7 @@ function og_forum_block($op = 'list', $delta = 0, $edit = array()) {
  * Menu callback; allows us to set group context prior to loading a forum
  */
 function og_forum_page($tid = 0) {   
-  global $user;
-  if ($tid != 0) { 
-    og_forum_set_og_group_context_from_tid($tid);
-    $gid = og_forum_gid_from_tid($tid); 
-    if ($gid) {
-      if (!array_key_exists($gid, $user->og_groups) && ($user->uid != 1) && !(user_access('administer forums')) && !og_forum_is_public($tid)) {
-        return drupal_access_denied();
-      }
-      og_set_theme($gid);
-      $node = node_load($gid);
-      og_set_language($node);
-    }
-  }
-  elseif (is_numeric(og_get_group_context())) {
+  if ($tid == 0 && is_numeric(og_get_group_context())) {
     $tid = og_get_group_context();
   }
   //The rest is copied from forum_page with a modified theme call
@@ -411,7 +399,7 @@ function og_forum_get_topics($tid, $sortby, $forum_per_page) {
  */
 function theme_og_forum_display($forums, $topics, $parents, $tid, $sortby, $forum_per_page) { 
   global $user;
-  _og_forum_set_breadcrumb($tid,$parents); 
+  _og_forum_set_breadcrumb($tid); 
   if (count($forums) || count($parents)) { 
     $output  = '<div id="forum">';
     $output .= '<ul>';
@@ -1021,11 +1009,10 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
         if (is_numeric($node->tid)) {
           $tid = $node->tid;
         }
-        $parents = taxonomy_get_parents_all($tid);
         // Breadcrumb navigation:
         global $_menu;
         if (og_get_group_context()) { 
-	      _og_forum_set_breadcrumb($tid,$parents);  
+	      _og_forum_set_breadcrumb($tid);  
         }
         drupal_set_title(check_plain($node->title));
         break;
@@ -1039,7 +1026,7 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
        $node->og_groups = array_keys($node->og_groups);  
      }
   }
-} 
+}
 
 /**
  * Implementation of hook_comment().
@@ -1050,41 +1037,48 @@ function og_forum_comment(&$a1, $op) {
   $node = node_load($nid);
   if (is_numeric($node->tid)) {
     $tid = $node->tid;
-    $parents = taxonomy_get_parents_all($tid);
-    _og_forum_set_breadcrumb($tid,$parents);
+    og_forum_set_og_group_context_from_tid($tid);
+    $gid = og_forum_gid_from_tid($tid); 
+    if ($gid) {
+      og_set_theme($gid);
+      $group_node = node_load($gid);
+      og_set_language($group_node);
+    }
+    _og_forum_set_breadcrumb($tid, TRUE);
   }	
 }
 
-function _og_forum_set_breadcrumb($tid,$parents){
-  // forum list, topics list, topic browser and 'add new topic' link
-  $vocabulary = taxonomy_vocabulary_load(variable_get('forum_nav_vocabulary', '')); 
+function _og_forum_set_breadcrumb($tid, $is_forum_post = FALSE) {
+  $vocabulary = taxonomy_vocabulary_load(variable_get('forum_nav_vocabulary', ''));
+  $parents = array_reverse(taxonomy_get_parents_all($tid));
   $title = $vocabulary->name;
   // Breadcrumb navigation:
-  $gid = og_forum_gid_from_tid($tid); 
+  $gid = og_forum_gid_from_tid($tid);
   $breadcrumb[] = l(t('Home'), NULL);
   if ($gid != NULL) {
     $node = node_load($gid);
 	$breadcrumb[] = l(t('Groups'), 'og'); 
 	$breadcrumb[] = l(t("@title", array('@title' => $node->title)), 'node/'. $node->nid);
   }
-  if ($tid) {
-    $breadcrumb[] = l(t("@title", array('@title' => $title)), 'forum');
-  }
-  if ($parents) {
-    $parents = array_reverse($parents);
-	foreach ($parents as $p) {
-	  if ($p->tid == $tid) {
-	    $title = $p->name;
-	  }
-	  else {
-	    $breadcrumb[] = l(t("@title", array('@title' => $p->name)), 'forum/' .$p->tid);
-	  }
+  if ($parents && count($parents) != 1) {
+    $p = array_shift($parents);
+    $title = 'Forums';
+    $breadcrumb[] = l(t("@title", array('@title' => 'Forums')), 'forum/' . $p->tid);
+    foreach ($parents as $p) {
+      if ($p->tid == $tid) {
+        $title = $p->name;
+        if ($is_forum_post)
+          $breadcrumb[] = l(t("@title", array('@title' => $p->name)), 'forum/' .$p->tid);
+      }
+      else {
+        $breadcrumb[] = l(t("@title", array('@title' => $p->name)), 'forum/' .$p->tid);
+      }
     }
   }
-  drupal_set_title(check_plain($title));
+  if (!$is_forum_post)
+    drupal_set_title(check_plain($title));
   drupal_set_breadcrumb($breadcrumb);	
 }
-
 
 /**
  * Retrieve container for given group
@@ -1679,4 +1673,46 @@ function og_forum_format($topic) {
   else {
     return t('n/a');
   }
+}
+
+function og_forum_preprocess_node($variables) {
+  if ($variables['type'] == 'forum') {
+    _og_forum_set_breadcrumb($variables['tid'], TRUE); 
+  }
+}
+
+function og_forum_preprocess_forums($variables) {
+  if (isset($variables['links']['forum'])) {
+    global $user;
+    if (!in_array($variables['tid'], variable_get('forum_containers', array())) && ($variables['tid'] != 0)) {
+      $gid = og_forum_gid_from_tid($variables['tid']);
+      //group forum link with group selected
+      if (!empty($gid) && array_key_exists($gid, $user->og_groups)) {
+        $variables['links']['forum']['query'] = array('gids[]' => $gid);
+      }
+    }
+  }
+  _og_forum_set_breadcrumb($variables['tid']); 
+}
+
+function og_forum_access_forum_page($tid = 0) {
+  if (!user_access('access content'))
+    return FALSE;
+  global $user;
+  if ($tid != 0) {
+    og_forum_set_og_group_context_from_tid($tid);
+    $gid = og_forum_gid_from_tid($tid); 
+    if ($gid) {
+      if (!array_key_exists($gid, $user->og_groups) && ($user->uid != 1) && !(user_access('administer forums')) && !og_forum_is_public($tid)) {
+        return FALSE;
+      }
+      og_set_theme($gid);
+      $node = node_load($gid);
+      og_set_language($node);
+    }
+  }
+  elseif (is_numeric(og_get_group_context())) {
+    $tid = og_get_group_context();
+  }
+  RETURN TRUE;
 }
