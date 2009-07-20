@@ -1675,13 +1675,13 @@ function og_forum_format($topic) {
   }
 }
 
-function og_forum_preprocess_node($variables) {
+function og_forum_preprocess_node(&$variables) {
   if ($variables['type'] == 'forum') {
     _og_forum_set_breadcrumb($variables['tid'], TRUE); 
   }
 }
 
-function og_forum_preprocess_forums($variables) {
+function og_forum_preprocess_forums(&$variables) {
   if (isset($variables['links']['forum'])) {
     global $user;
     if (!in_array($variables['tid'], variable_get('forum_containers', array())) && ($variables['tid'] != 0)) {
