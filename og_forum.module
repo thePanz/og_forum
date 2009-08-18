@@ -38,14 +38,6 @@ function og_forum_perm() {
  * Implementation of hook_menu().
  */
 function og_forum_menu() {
-  $items = array();
-  $items['forum'] = array(
-    'title' => t('Forums'),
-    'page callback' => 'og_forum_page',
-    'access arguments' => array(1),
-    'access callback' =>  'og_forum_access_forum_page',
-    'type' => MENU_SUGGESTED_ITEM,
-  );
   $items['admin/og/og_forum'] = array(
     'title' => t('Organic groups forums'),
     'description' => t('Configure forums for organic groups'),
@@ -110,7 +102,15 @@ function og_forum_menu() {
     'type' => MENU_LOCAL_TASK
   ); 
   return $items;
-} // function og_forum_menu()
+}
+
+/**
+ * Implementation of hook_menu_alter().
+ */
+function og_forum_menu_alter(&$callbacks) {
+  $callbacks['forum']['access callback'] = 'og_forum_access_forum_page';
+  $callbacks['forum']['access arguments'] = array(1);
+}
 
 function og_forum_access_privileges_1 ($gid) {
   $group = node_load($gid);
@@ -126,35 +126,20 @@ function og_forum_access_privileges_2 ($gid) {
 function og_forum_access_privileges_3 ($gid, $tid) {
   $group = node_load($gid);
   return ((og_forum_is_admin($group) && user_access('admin own group forums') && !og_forum_forum_limit_reached($tid)) || user_access('administer forums'));
-} // took off a ) bracket after the end of user_access('admin own group forums') , is this right ?? 		
+} // took off a ) bracket after the end of user_access('admin own group forums') , is this right ?? 
 
 function og_forum_group_type_load($arg) {
   $node = node_load($arg);
   if (og_is_group_type($node->type)) {
      global $user;
      $tid = og_forum_get_forum_container($arg);
-     if (og_forum_is_public($tid) || array_key_exists($arg, $user->og_groups) || $user->uid == 1 || user_access('administer forums'))
+     if (og_forum_is_public($tid) || (is_array($user->og_groups) && array_key_exists($arg, $user->og_groups)) || user_access('administer forums'))
        return 'forum/'.$tid;
      else
        return FALSE;
   }
   return FALSE;
 }
-
-function og_forum_theme() {
-  return array(
-    'og_forum_display' => array(
-      'arguments' => array('forums' => NULL,'topics' => NULL,'parents' => NULL,'tid' => NULL,'sortby' => NULL,'forum_per_page' => NULL),
-    ),
-    'og_forum_list' => array(
-      'arguments' => array('forums' => NULL,'parents' => NULL,'tid' => NULL),
-    ),
-    'og_forum_topic_list' => array(
-      'arguments' => array('tid' => NULL, 'topics' => NULL, 'sortby' => NULL,'forum_per_page' => NULL, 'gid' => NULL),
-    ),
-  );
-}
-
 
 /**
  * Implimentation of hook_block()
@@ -217,338 +202,6 @@ function og_forum_block($op = 'list', $delta = 0, $edit = array()) {
       }
   }
 } //og_forum_block
- 
-
-/**
- * Menu callback; allows us to set group context prior to loading a forum
- */
-function og_forum_page($tid = 0) {   
-  if ($tid == 0 && is_numeric(og_get_group_context())) {
-    $tid = og_get_group_context();
-  }
-  //The rest is copied from forum_page with a modified theme call
-  if (module_exists('taxonomy') && module_exists('comment')) {  
-    $forum_per_page = variable_get('forum_per_page', 25); 
-    $sortby = variable_get('forum_order', 1); 
-    if (og_forum_is_public($tid)) { 
-      $forums = og_forum_get_forums($tid);
-    }
-    else {
-      $forums = forum_get_forums($tid); 
-    } 
-    $parents = taxonomy_get_parents_all($tid);  
-    if ($tid && !in_array($tid, variable_get('forum_containers', array()))) { 
-      if (og_forum_is_public($tid)) {
-        $topics = og_forum_get_topics($tid, $sortby, $forum_per_page);
-      }
-      else { 
-        $topics = forum_get_topics($tid, $sortby, $forum_per_page);
-      }
-    }
-    else {
-      $topics = array();
-    } 
-    return theme('og_forum_display', $forums, $topics, $parents, $tid, $sortby, $forum_per_page);
-  }
-  else {
-    drupal_set_message(t('The forum module requires both the taxonomy module and the comment module to be enabled and configured.'), 'error');
-    return ' ';
-  }  
-} // function og_forum_page()
-
-/**
- * Returns a list of all forums for a given taxonomy id.
- * Copied forum_get_forums from the forum module in order to bypass node_access removing topics from listings when set to publicly viewable.
- * This is only called when private posts should be viewable and on a per-forum basis - i.e. called only when the forum's publicity is set
- * to PRIVATE_DEFAULT; if a group owner sets a forum to PRIVATE_SET_BY_OWNER, topics won't show in the list.
- *
- * Forum objects contain the following fields
- * -num_topics Number of topics in the forum
- * -num_posts Total number of posts in all topics
- * -last_post Most recent post for the forum
- *
- * @param $tid
- *   Taxonomy ID of the vocabulary that holds the forum list.
- * @return
- *   Array of object containing the forum information.
- */
-function og_forum_get_forums($tid = 0) {
-  global $user;	
-  $forums = array();
-  $_forums = taxonomy_get_tree(variable_get('forum_nav_vocabulary', ''), $tid);
-
-  if (count($_forums)) {
-    $counts = array();
-    $sql = "SELECT r.tid, COUNT(n.nid) AS topic_count, SUM(l.comment_count) AS comment_count FROM {node} n INNER JOIN {node_comment_statistics} l ON n.nid = l.nid INNER JOIN {term_node} r ON n.nid = r.nid WHERE n.status = 1 AND n.type = 'forum' GROUP BY r.tid";
-    $result = db_query($sql);
-    while ($count = db_fetch_object($result)) {
-      $counts[$count->tid] = $count;
-    }
-  }
-
-  foreach ($_forums as $forum) {
-	$gid = og_forum_gid_from_tid($forum->tid);
-	if (!og_forum_is_public($forum->tid) && !array_key_exists($gid, $user->og_groups) && $user->uid != 1 && !user_access('administer forums')) {
-	  continue;
-	}
-    if (in_array($forum->tid, variable_get('forum_containers', array()))) {
-      $forum->container = 1;
-    }
-
-    if ($counts[$forum->tid]) {
-      $forum->num_topics = $counts[$forum->tid]->topic_count;
-      $forum->num_posts = $counts[$forum->tid]->topic_count + $counts[$forum->tid]->comment_count;
-    }
-    else {
-      $forum->num_topics = 0;
-      $forum->num_posts = 0;
-    }
-
-    // This query does not use full ANSI syntax since MySQL 3.x does not support
-    // table1 INNER JOIN table2 INNER JOIN table3 ON table2_criteria ON table3_criteria
-    // used to join node_comment_statistics to users.
-    $sql = "SELECT ncs.last_comment_timestamp, IF (ncs.last_comment_uid != 0, u2.name, ncs.last_comment_name) AS last_comment_name, ncs.last_comment_uid FROM {node} n INNER JOIN {users} u1 ON n.uid = u1.uid INNER JOIN {term_node} tn ON n.nid = tn.nid INNER JOIN {node_comment_statistics} ncs ON n.nid = ncs.nid INNER JOIN {users} u2 ON ncs.last_comment_uid=u2.uid WHERE n.status = 1 AND n.type='forum' AND tn.tid = %d ORDER BY ncs.last_comment_timestamp DESC";
-    $topic = db_fetch_object(db_query_range($sql, $forum->tid, 0, 1));
-
-    $last_post = new stdClass();
-    $last_post->timestamp = $topic->last_comment_timestamp;
-    $last_post->name = $topic->last_comment_name;
-    $last_post->uid = $topic->last_comment_uid;
-    $forum->last_post = $last_post;
-
-    $forums[$forum->tid] = $forum;
-  }
-
-  return $forums;
-}
-
-/**
- * Copied forum_get_topics from the forum module in order to bypass node_access removing topics from listings when set to publicly viewable.
- * This is only called when private posts should be viewable and on a per-forum basis - i.e. called only when the forum's publicity is set
- * to PRIVATE_DEFAULT; if a group owner sets a forum to PRIVATE_SET_BY_OWNER, topics won't show in the list.
- *
- * @param integer $tid
- * @param string $sortby
- * @param integer $forum_per_page
- * @return array
- */
-function og_forum_get_topics($tid, $sortby, $forum_per_page) {
-  global $user, $forum_topic_list_header;
-  $forum_topic_list_header = array(
-    array('data' => '&nbsp;', 'field' => NULL),
-    array('data' => t('Topic'), 'field' => 'n.title'),
-    array('data' => t('Replies'), 'field' => 'l.comment_count'),
-    array('data' => t('Created'), 'field' => 'n.created'),
-    array('data' => t('Last reply'), 'field' => 'l.last_comment_timestamp'),
-  );
-
-  $order = _forum_get_topic_order($sortby);
-  for ($i = 0; $i < count($forum_topic_list_header); $i++) {
-    if ($forum_topic_list_header[$i]['field'] == $order['field']) {
-      $forum_topic_list_header[$i]['sort'] = $order['sort'];
-    }
-  }
-
-  $term = taxonomy_get_term($tid);
-  //can I just use some regexes to remove restirctions after I get the $sql var back from db_rewrite_sql? or do I not really need to worry about that? for now, just unwrapping db_rewrite_sql from next line
-  $sql = "SELECT n.nid, f.tid, n.title, n.sticky, u.name, u.uid, n.created AS timestamp, n.comment AS comment_mode, l.last_comment_timestamp, IF(l.last_comment_uid != 0, cu.name, l.last_comment_name) AS last_comment_name, l.last_comment_uid, l.comment_count AS num_comments FROM {node_comment_statistics} l, {users} cu, {term_node} r, {users} u, {forum} f, {node} n WHERE n.status = 1 AND l.last_comment_uid = cu.uid AND n.nid = l.nid AND n.nid = r.nid AND r.tid = %d AND n.uid = u.uid AND n.vid = f.vid";
-  $sql .= tablesort_sql($forum_topic_list_header, 'n.sticky DESC,');
-  $sql .= ', n.created DESC';  // Always add a secondary sort order so that the news forum topics are on top.
-
-  $sql_count = "SELECT COUNT(n.nid) FROM {node} n INNER JOIN {term_node} r ON n.nid = r.nid AND r.tid = %d WHERE n.status = 1 AND n.type = 'forum'";
-
-  $result = pager_query($sql, $forum_per_page, 0, $sql_count, $tid);
-  $topics = array();
-  while ($topic = db_fetch_object($result)) {
-    if ($user->uid) {
-      // folder is new if topic is new or there are new comments since last visit
-      if ($topic->tid != $tid) {
-        $topic->new = 0;
-      }
-      else {
-        $history = _forum_user_last_visit($topic->nid);
-        $topic->new_replies = comment_num_new($topic->nid, $history);
-        $topic->new = $topic->new_replies || ($topic->timestamp > $history);
-      }
-    }
-    else {
-      // Do not track "new replies" status for topics if the user is anonymous.
-      $topic->new_replies = 0;
-      $topic->new = 0;
-    }
-
-    if ($topic->num_comments > 0) {
-      $last_reply = new stdClass();
-      $last_reply->timestamp = $topic->last_comment_timestamp;
-      $last_reply->name = $topic->last_comment_name;
-      $last_reply->uid = $topic->last_comment_uid;
-      $topic->last_reply = $last_reply;
-    }
-    $topics[] = $topic;
-  }
-
-  return $topics;
-}
-
-/**
- * Format the forum body.
- * 
- * Copied from forum module. Slightly modified to produce correct links and eliminate 'add new topic' links in containers.
- *
- * @ingroup themeable
- */
-function theme_og_forum_display($forums, $topics, $parents, $tid, $sortby, $forum_per_page) { 
-  global $user;
-  _og_forum_set_breadcrumb($tid); 
-  if (count($forums) || count($parents)) { 
-    $output  = '<div id="forum">';
-    $output .= '<ul>';
-    if (user_access('create forum topics') && !in_array($tid, variable_get('forum_containers', array())) && ($tid != 0)) {
-      og_forum_set_og_group_context_from_tid($tid);
-      $gid = og_forum_gid_from_tid($tid);
-      //group forum link with group selected
-      if (!empty($gid) && array_key_exists($gid, $user->og_groups)) {//make sure only group members are shown this link
-        $output .=  '<li>' .l(t('Post new forum topic.'), "node/add/forum/$tid", array('attributes' => array(), 'query' => 'gids[]='.$gid)) . '</li>';
-      }
-      elseif (empty($gid)) {//normal forum, not in group
-        $output .= '<li>' .l(t('Post new forum topic.'), "node/add/forum/$tid"). '</li>';
-      }
-    }
-    elseif (user_access('create forum topics')) { 
-      $output .= '<li>' .t('Select a forum below.'). '</li>';
-    }
-    elseif ($user->uid) {
-      $output .= '<li>' .t('You are not allowed to post a new forum topic.'). '</li>';
-    }
-    else {
-       $output .= '<li>' .t('<a href="@login">Login</a> to post a new forum topic.', array('@login' => url('user/login', array('query' => drupal_get_destination())))). '</li>';
-    }
-    $output .= '</ul>';
-    $output .= theme('og_forum_list', $forums, $parents, $tid);
-    if ($tid && !in_array($tid, variable_get('forum_containers', array()))) {
-      $output .= theme('og_forum_topic_list', $tid, $topics, $sortby, $forum_per_page, $gid);
-      if (og_forum_is_public($tid)) {
-        drupal_add_feed(url('taxonomy/term/' .$tid. '/0/feed'), 'RSS - ' .$title);
-      }
-    }
-    $output .= '</div>';
-  }
-  else {
-    drupal_set_title(t('No forums defined or you don\'t have permission to view them.'));
-    $output = '';
-  }
-  return $output;
-} // function theme_og_forum_display()
-
-/**
- * Format the forum listing.
- * 
- * Copied from forum module. Slightly modified to produce correct links.
- *
- * @ingroup themeable
- */
-function theme_og_forum_list($forums, $parents, $tid) {
-  global $user;
-  if ($forums) {
-    $header = array(t('Forum'), t('Topics'), t('Posts'), t('Last post'));
-    foreach ($forums as $forum) {
-      if ($forum->container) {
-        $description  = '<div style="margin-left: ' .($forum->depth * 30). "px;\">\n";
-        $description .= ' <div class="name">' .l($forum->name, "forum/$forum->tid"). "</div>\n";
-        if ($forum->description) {
-          $description .= ' <div class="description">' .filter_xss_admin($forum->description). "</div>\n";
-        }
-        $description .= "</div>\n";
-        $rows[] = array(array('data' => $description, 'class' => 'container', 'colspan' => '4'));
-      }
-      else {
-        $new_topics = _forum_topics_unread($forum->tid, $user->uid);
-        $forum->old_topics = $forum->num_topics - $new_topics;
-        if (!$user->uid) {
-          $new_topics = 0;
-        }
-        $description  = '<div style="margin-left: ' .($forum->depth * 30). "px;\">\n";
-        $description .= ' <div class="name">' .l($forum->name, "forum/$forum->tid"). "</div>\n";
-        if ($forum->description) {
-          $description .= ' <div class="description">' .filter_xss_admin($forum->description). "</div>\n";
-        }
-        $description .= "</div>\n";
-        $rows[] = array(
-          array('data' => $description, 'class' => 'forum'),          
-          array('data' => $forum->num_topics .($new_topics ? '<br />' .l(format_plural($new_topics, '1 new', '@count new'), "forum/$forum->tid", array('attributes' => NULL, 'query' => NULL , 'fragment' => 'new')) : ''), 'class' => 'topics'),
-          array('data' => $forum->num_posts, 'class' => 'posts'),
-          array('data' => og_forum_format($forum->last_post), 'class' => 'last-reply'));
-      }
-    }
-    return theme('table', $header, $rows);
-  }
-} // function theme_og_forum_list()
-
-/**
- * Format the topic listing.
- * 
- * Copied from forum module. Slightly modified to produce correct links.
- *
- * @ingroup themeable
- */
-function theme_og_forum_topic_list($tid, $topics, $sortby, $forum_per_page, $gid) {
-  global $forum_topic_list_header, $user;
-  if ($topics) {
-    foreach ($topics as $topic) {
-      // folder is new if topic is new or there are new comments since last visit
-      if ($topic->tid != $tid) {
-        $rows[] = array(
-          array('data' => theme('forum_icon', $topic->new, $topic->num_comments, $topic->comment_mode, $topic->sticky), 'class' => 'icon'),
-          array('data' => check_plain($topic->title), 'class' => 'title'),
-          array('data' => l(t('This topic has been moved'), "forum/$topic->tid"), 'colspan' => '3')
-        );
-      }
-      else {
-        $sql = "SELECT oap.nid, COALESCE(oap.og_public, 1) AS is_public FROM {og_access_post} oap WHERE oap.nid = %d";
-        $public_post = db_fetch_object(db_query($sql, $topic->nid));
-        if (isset($public_post) && $public_post->is_public == 1 && !array_key_exists($gid, $user->og_groups)) {
-          $rows[] = array(
-            array('data' => theme('forum_icon', $topic->new, $topic->num_comments, $topic->comment_mode, $topic->sticky) .' public', 'class' => 'icon public'),  
-            array('data' => l($topic->title, "node/$topic->nid"), 'class' => 'topic'),  
-            array('data' => $topic->num_comments. ($topic->new_replies ? '<br />' .l(format_plural($topic->new_replies, '1 new', '@count new'), "node/$topic->nid", array('attributes' => NULL, 'query' => NULL, 'fragment' => 'new')) : ''), 'class' => 'replies'),
-            array('data' => og_forum_format($topic), 'class' => 'created'),
-            array('data' => og_forum_format(isset($topic->last_reply) ? $topic->last_reply : NULL), 'class' => 'last-reply')
-          );
-        }
-        elseif (isset($public_post) && $public_post->is_public == 0 && !array_key_exists($gid, $user->og_groups)) {
-          $rows[] = array(
-            array('data' => theme('forum_icon', $topic->new, $topic->num_comments, $topic->comment_mode, $topic->sticky) .' private', 'class' => 'icon private'),
-            array('data' => l($topic->title, "node/$topic->nid"), 'class' => 'topic'),
-            array('data' => $topic->num_comments. ($topic->new_replies ? '<br />' .l(format_plural($topic->new_replies, '1 new', '@count new'), "node/$topic->nid", array('attributes' => NULL, 'query' => NULL, 'fragment' => 'new')) : ''), 'class' => 'replies'),
-            array('data' => og_forum_format($topic), 'class' => 'created'),
-            array('data' => og_forum_format(isset($topic->last_reply) ? $topic->last_reply : NULL), 'class' => 'last-reply')
-          );
-        }
-        elseif (isset($public_post)) {//if the user is a group member, hide the public/private indicators
-          $rows[] = array(
-            array('data' => theme('forum_icon', $topic->new, $topic->num_comments, $topic->comment_mode, $topic->sticky), 'class' => 'icon'),
-            array('data' => l($topic->title, "node/$topic->nid"), 'class' => 'topic'),
-            array('data' => $topic->num_comments. ($topic->new_replies ? '<br />' .l(format_plural($topic->new_replies, '1 new', '@count new'), "node/$topic->nid", array('attributes' => NULL, 'query' => NULL, 'fragment' => 'new')) : ''), 'class' => 'replies'),
-            array('data' => og_forum_format($topic), 'class' => 'created'),
-            array('data' => og_forum_format(isset($topic->last_reply) ? $topic->last_reply : NULL), 'class' => 'last-reply')
-          );
-        }
-        else {//non-group forum topics
-          $rows[] = array(
-            array('data' => theme('forum_icon', $topic->new, $topic->num_comments, $topic->comment_mode, $topic->sticky) .' public', 'class' => 'icon public'),
-            array('data' => l($topic->title, "node/$topic->nid"), 'class' => 'topic'),
-            array('data' => $topic->num_comments. ($topic->new_replies ? '<br />' .l(format_plural($topic->new_replies, '1 new', '@count new'), "node/$topic->nid", array('attributes' => NULL, 'query' => NULL, 'fragment' => 'new')) : ''), 'class' => 'replies'),
-            array('data' => og_forum_format($topic), 'class' => 'created'),
-            array('data' => og_forum_format(isset($topic->last_reply) ? $topic->last_reply : NULL), 'class' => 'last-reply')
-          );
-        }
-      }
-    }
-  }
-  $output = theme('table', $forum_topic_list_header, $rows);
-  $output .= theme('pager', NULL, $forum_per_page, 0);
-  return $output;
-} // function theme_og_forum_topic_list()
 
 /**
  * Implementation of hook_settings().
@@ -739,21 +392,34 @@ function og_forum_gid_from_tid($tid=0) {
 
 /**
  * Implementation of hook_db_rewrite_sql().
- *
-*/
-function og_forum_db_rewrite_sql($query, $primary_table = 'n', $primary_field = 'nid') {
+ */
+function og_forum_db_rewrite_sql($query, $primary_table = 'n', $primary_field = 'nid', $args = array()) {
+  global $user;
+
   if ($primary_field == 'tid') {
+    // On forum* paths, filter terms by og_forum_is_public() and the user's
+    // group memberships via {og_term} relationships.
+    if (arg(0) == 'forum' && !user_access('administer forums')) {
+      $return['join'] = "LEFT JOIN {og_term} ogt ON ogt.tid = t.tid";
+      // Either the forum is unconfigured or public.
+      $return['where'] = "ogt.public IS NULL OR ogt.public > " . PRIVATE_BY_GROUP_OWNER;
+      // ...or the user is member of the group associated with the forum.
+      if (!empty($user->og_groups)) {
+        $return['where'] .= " OR ogt.nid IN (" . implode(',', array_keys($user->og_groups)) . ")";
+      }
+      return $return;
+    }
     if (arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum' && !$_GET['gids']) {
       $return['join'] = "LEFT JOIN {og_term} ogt ON t.tid = ogt.tid";
       $return['where'] = "ogt.nid IS NULL";
       if ($og_forum_container = variable_get('forum_default_container', FALSE)) {
-	    $return['where'] .= " AND t.tid != $og_forum_container";
-	  }
+        $return['where'] .= " AND t.tid != $og_forum_container";
+      }
       $return['distinct'] = TRUE;
       return $return;
     }
   }
-}// function og_forum_db_rewrite_sql()
+}
 
 /**
  * Implementation of hook_nodeapi().
@@ -1030,7 +696,6 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
 
 /**
  * Implementation of hook_comment().
- *
  */
 function og_forum_comment(&$a1, $op) { 
   $nid = $a1->nid;
@@ -1038,14 +703,14 @@ function og_forum_comment(&$a1, $op) {
   if (is_numeric($node->tid)) {
     $tid = $node->tid;
     og_forum_set_og_group_context_from_tid($tid);
-    $gid = og_forum_gid_from_tid($tid); 
+    $gid = og_forum_gid_from_tid($tid);
     if ($gid) {
       og_set_theme($gid);
       $group_node = node_load($gid);
       og_set_language($group_node);
     }
     _og_forum_set_breadcrumb($tid, TRUE);
-  }	
+  }
 }
 
 function _og_forum_set_breadcrumb($tid, $is_forum_post = FALSE) {
@@ -1646,34 +1311,22 @@ function og_forum_reset($gid, $tid) {
 
 /**
  * Test whether a tid (forum or container) is public and return results.
- *
- * @param integer $tid
- * @return boolean
  */
 function og_forum_is_public($tid) {
-  $all_public = variable_get('forum_all_public', 0);
   $sql = "SELECT tid, public, nid FROM {og_term} WHERE tid = %d";
   $results = db_fetch_object(db_query($sql, $tid));
   if (!empty($results) && ($results->public <= PRIVATE_BY_GROUP_OWNER)) {
-    return 0;
-    } else {
-      return 1;
+    return FALSE;
   }
-} // function og_forum_is_public()
+  else {
+    return TRUE;
+  }
+}
 
 function og_forum_get_vid() {
   $vid = variable_get('forum_nav_vocabulary', '');
   return $vid;
 }	
-
-function og_forum_format($topic) {
-  if ($topic && $topic->timestamp) {
-    return t('@time ago<br />by !author', array('@time' => format_interval(time() - $topic->timestamp), '!author' => theme('username', $topic)));
-  }
-  else {
-    return t('n/a');
-  }
-}
 
 function og_forum_preprocess_node(&$variables) {
   if ($variables['type'] == 'forum') {
@@ -1696,9 +1349,11 @@ function og_forum_preprocess_forums(&$variables) {
 }
 
 function og_forum_access_forum_page($tid = 0) {
-  if (!user_access('access content'))
+  if (!user_access('access content')) {
     return FALSE;
+  }
   global $user;
+
   if ($tid != 0) {
     og_forum_set_og_group_context_from_tid($tid);
     $gid = og_forum_gid_from_tid($tid); 
@@ -1714,5 +1369,6 @@ function og_forum_access_forum_page($tid = 0) {
   elseif (is_numeric(og_get_group_context())) {
     $tid = og_get_group_context();
   }
-  RETURN TRUE;
+  return TRUE;
 }
+
