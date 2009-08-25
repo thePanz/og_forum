@@ -15,7 +15,6 @@ which are detailed below.
   SETUP
   FEATURES
   USAGE (Example)
-  UNINSTALL
   THEMING
   CREDITS
   
@@ -155,11 +154,6 @@ which are detailed below.
   I couldn't think of anything not already covered by the FEATURES section. If anyone has a
   special use-case or combo of settings they think need special mention here, let me know.
 
---UNINSTALL--
-  As of version 2.2 (for 5.x), this module has a proper uninstall routine which will remove
-  the og_term table from the database and all variables from the variable table. You do this
-  through the usual Drupal means.
-
 --THEMING--
   NOTE: This module overrides the theme functions from Drupal core's
     forum module.
@@ -169,11 +163,9 @@ which are detailed below.
   forum module as starting points.
   
 --CREDITS--
-  Ryan Constantine (Drupal ID rconstantine) & Paul Booker (Glaxstar) are the current Maintainer and the fellow who
-  got OG forums working with site-wide forums, and made OG forums publicly viewable based
-  on Admin and Group Owner settings.
+  Ryan Constantine (Drupal ID rconstantine) & Paul Booker (Drupal ID paulbooker)  are the current maintainers.
   
-  Darren Oh is the previous maintainer and current co-maintainer.
+  Darren Oh is a previous maintainer.
 
   Historical thanks to:
   Evan Leeson of Catalyst Creative for sponsorship of 4.7 port and

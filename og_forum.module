@@ -1340,7 +1340,7 @@ function og_forum_preprocess_forums(&$variables) {
     if (!in_array($variables['tid'], variable_get('forum_containers', array())) && ($variables['tid'] != 0)) {
       $gid = og_forum_gid_from_tid($variables['tid']);
       //group forum link with group selected
-      if (!empty($gid) && array_key_exists($gid, $user->og_groups)) {
+      if (!empty($gid) && (is_array($user->og_groups) && array_key_exists($gid, $user->og_groups))) {
         $variables['links']['forum']['query'] = array('gids[]' => $gid);
       }
     }
@@ -1358,7 +1358,7 @@ function og_forum_access_forum_page($tid = 0) {
     og_forum_set_og_group_context_from_tid($tid);
     $gid = og_forum_gid_from_tid($tid); 
     if ($gid) {
-      if (!array_key_exists($gid, $user->og_groups) && ($user->uid != 1) && !(user_access('administer forums')) && !og_forum_is_public($tid)) {
+      	if (!(is_array($user->og_groups) && array_key_exists($gid, $user->og_groups)) && ($user->uid != 1) && !(user_access('administer forums')) && !og_forum_is_public($tid)) {	
         return FALSE;
       }
       og_set_theme($gid);
