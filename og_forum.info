@@ -6,5 +6,4 @@ description = Creates forums within organic groups.
 package = Organic groups
 dependencies[] = forum
 dependencies[] = og 
-dependencies[] = og_access
 core = 6.x

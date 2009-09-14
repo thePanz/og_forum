@@ -133,7 +133,7 @@ function og_forum_group_type_load($arg) {
   if (og_is_group_type($node->type)) {
      global $user;
      $tid = og_forum_get_forum_container($arg);
-     if (og_forum_is_public($tid) || (is_array($user->og_groups) && array_key_exists($arg, $user->og_groups)) || user_access('administer forums'))
+     if (og_forum_is_public($tid) || (!empty($user->og_groups) && array_key_exists($arg, $user->og_groups)) || user_access('administer forums'))
        return 'forum/'.$tid;
      else
        return FALSE;
@@ -396,20 +396,24 @@ function og_forum_gid_from_tid($tid=0) {
 function og_forum_db_rewrite_sql($query, $primary_table = 'n', $primary_field = 'nid', $args = array()) {
   global $user;
 
-  if ($primary_field == 'tid') {
-    // On forum* paths, filter terms by og_forum_is_public() and the user's
-    // group memberships via {og_term} relationships.
-    if (arg(0) == 'forum' && !user_access('administer forums')) {
-      $return['join'] = "LEFT JOIN {og_term} ogt ON ogt.tid = t.tid";
-      // Either the forum is unconfigured or public.
-      $return['where'] = "ogt.public IS NULL OR ogt.public > " . PRIVATE_BY_GROUP_OWNER;
-      // ...or the user is member of the group associated with the forum.
-      if (!empty($user->og_groups)) {
-        $return['where'] .= " OR ogt.nid IN (" . implode(',', array_keys($user->og_groups)) . ")";
+  if ($primary_field == 'tid') { 
+	if (arg(0) == 'forum') {
+      if (user_access('administer forums') || (!module_exists('og_access') || variable_get('forum_all_public', 0))) {
+	    return;
+      // On forum* paths, filter terms by og_forum_is_public() and the user's
+      // group memberships via {og_term} relationships.
+      } else {
+        $return['join'] = "LEFT JOIN {og_term} ogt ON ogt.tid = t.tid";
+        // Either the forum is unconfigured or public.
+        $return['where'] = "ogt.public IS NULL OR ogt.public > " . PRIVATE_BY_GROUP_OWNER;
+        // ...or the user is member of the group associated with the forum.
+        if (!empty($user->og_groups)) {
+          $return['where'] .= " OR ogt.nid IN (" . implode(',', array_keys($user->og_groups)) . ")";
+        }
+        return $return;
       }
-      return $return;
     }
-    if (arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum' && !$_GET['gids']) {
+    if (arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum' && empty($_GET['gids'])) {
       $return['join'] = "LEFT JOIN {og_term} ogt ON t.tid = ogt.tid";
       $return['where'] = "ogt.nid IS NULL";
       if ($og_forum_container = variable_get('forum_default_container', FALSE)) {
@@ -813,12 +817,12 @@ function og_forum_retroactively_apply() {
 /**
  * Implementation of hook_form_alter().
  */
-function og_forum_form_alter(&$form, &$form_state, $form_id) {  
+function og_forum_form_alter(&$form, &$form_state, $form_id) {
   // Auto-select group's forum when adding/editing a forum topic
-  if ($form_id == 'forum_node_form') { 
+  if ($form_id == 'forum_node_form') {   
     $group = og_get_group_context();  
     //if we couldn't get the context from og, don't give up. Try getting it from the nid if we have one.
-    if (empty($group)) { 
+    if (empty($group)) {
       if (arg(0) == 'node' && arg(2) == 'edit' && is_numeric(arg(1))) { 
         $sql = "SELECT tid FROM {forum} WHERE nid = %d";
         $result = db_fetch_object(db_query($sql, arg(1)));
@@ -826,9 +830,9 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
         $group = og_get_group_context();
       }
     }
-    $GID = $group->nid; 
-    if ($GID) {  
-      $results = db_query('SELECT ot.tid, th.parent FROM {og_term} ot LEFT JOIN {term_hierarchy} th ON ot.tid = th.tid WHERE nid = %d ORDER BY tid ASC', $GID);
+    if (isset($group->nid)) {
+	  $gid = $group->nid;
+      $results = db_query('SELECT ot.tid, th.parent FROM {og_term} ot LEFT JOIN {term_hierarchy} th ON ot.tid = th.tid WHERE nid = %d ORDER BY tid ASC', $gid);
       while ($result = db_fetch_object($results)) {
         $all_results[$result->tid] = $result->parent;
       }
@@ -858,37 +862,22 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
         if (is_array($all_results) && !array_key_exists($option_key, $all_results)) {
           unset($form['taxonomy'][$vid]['#options'][$key]);
         }
-       }  
-       //check to see if the audience is required or optional.
-       if (variable_get('og_audience_required', FALSE) == 1) {   
-         if (count($form['og_nodeapi']['visible']['og_groups']['#default_value'])) {
-           drupal_add_js(drupal_get_path('module', 'og_forum'). '/og_forum.js');
+       }
+	   //check to see if forum is a group post type.
+	   if (og_is_group_post_type($form['#node']->type)) {
+		 $groups = array($gid => $gid);
+		 //hide checkboxes if 'Audience checkboxes' is checked in OG settings
+		 if (variable_get('og_audience_checkboxes', TRUE)) {
            $options = $form['og_nodeapi']['visible']['og_groups']['#options'];
-           $groups = $form['og_nodeapi']['visible']['og_groups']['#default_value'];
-           foreach ($groups as $key => $value) {
-             $groups[$key] = (string)$value;
-           } // TODO: Is this foreach of any use ?
-           foreach ($groups as $gid) {
-             $titles[] = $options[$gid];
-             $item_value = implode(', ', $titles);
-           }
-           $form['og_nodeapi']['visible']['og_groups_visible'] = array('#type' => 'item', '#title' => t('Audience'), '#value' => $item_value); 
-           $assoc_groups = drupal_map_assoc($groups);
-           // TODO: Is this if/else of any use ? 
-           if ($form['og_nodeapi']['visible']['og_public']['#default_value'] == 1) {
-             $form['og_nodeapi']['visible']['og_public']['#default_value'] = 1;
-           }
-           else {
-               $form['og_nodeapi']['visible']['og_public']['#default_value'] = 0;
-           }
+           $form['og_nodeapi']['visible']['og_groups_visible'] = array('#type' => 'item', '#title' => t('Audience'), '#value' => $options[$gid]);
+		   // When you make a group forum post it can only be made into the group the forum is affiliated with.
+		   unset($form['og_nodeapi']['visible']['og_groups']);
          }
-         // When you make a group forum post it can only be made into the group the forum is affiliated with.
-         unset($form['og_nodeapi']['visible']['og_groups']);
          // this 'value' element persists the audience value during submit process
-	     $form['og_nodeapi']['invisible']['og_groups'] = array('#type' => 'value', '#value' => $assoc_groups);
+	     $form['og_nodeapi']['invisible']['og_groups'] = array('#type' => 'value', '#value' => $groups);		
        }
     }
-    else { 
+    else {  
       $results = db_query('SELECT ot.tid, th.parent FROM {og_term} ot LEFT JOIN {term_hierarchy} th ON ot.tid = th.tid ORDER BY tid ASC');
       while ($result = db_fetch_object($results)) {
         $all_results[$result->tid] = $result->parent;
@@ -916,10 +905,9 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
           }
         }
       }
-    }
-    //TODO: These looks to be redundant
-    //$form['taxonomy']['#collapsible'] = TRUE;
-    //$form['taxonomy']['#collapsed'] = TRUE;
+      // No group audience for sitewide forums  
+      unset($form['og_nodeapi']['visible']['og_groups']); 
+    } 
   }
   if ($form_id == 'forum_form_container') {
     $allow_public = variable_get('forum_allow_public', 0);
@@ -1335,17 +1323,22 @@ function og_forum_preprocess_node(&$variables) {
 }
 
 function og_forum_preprocess_forums(&$variables) {
-  if (isset($variables['links']['forum'])) {
-    global $user;
-    if (!in_array($variables['tid'], variable_get('forum_containers', array())) && ($variables['tid'] != 0)) {
-      $gid = og_forum_gid_from_tid($variables['tid']);
-      //group forum link with group selected
-      if (!empty($gid) && (is_array($user->og_groups) && array_key_exists($gid, $user->og_groups))) {
+  if(isset($variables['tid']) && $variables['tid'] != 0) {
+    $gid = og_forum_gid_from_tid($variables['tid']);
+    if (!empty($gid)) {
+      _og_forum_set_group_context(node_load($gid));
+      _og_forum_set_breadcrumb($variables['tid']);
+      if (isset($variables['links']['forum'])) {
         $variables['links']['forum']['query'] = array('gids[]' => $gid);
       }
     }
   }
-  _og_forum_set_breadcrumb($variables['tid']); 
+}
+
+function _og_forum_set_group_context($group) {
+  og_set_theme($group->nid);
+  og_set_language($group);
+  og_set_group_context($group);
 }
 
 function og_forum_access_forum_page($tid = 0) {
@@ -1358,7 +1351,7 @@ function og_forum_access_forum_page($tid = 0) {
     og_forum_set_og_group_context_from_tid($tid);
     $gid = og_forum_gid_from_tid($tid); 
     if ($gid) {
-      	if (!(is_array($user->og_groups) && array_key_exists($gid, $user->og_groups)) && ($user->uid != 1) && !(user_access('administer forums')) && !og_forum_is_public($tid)) {	
+      	if (!(!empty($user->og_groups) && array_key_exists($gid, $user->og_groups)) && ($user->uid != 1) && !(user_access('administer forums')) && !og_forum_is_public($tid)) {	
         return FALSE;
       }
       og_set_theme($gid);
