@@ -397,8 +397,8 @@ function og_forum_db_rewrite_sql($query, $primary_table = 'n', $primary_field = 
   global $user;
 
   if ($primary_field == 'tid') { 
-	if (arg(0) == 'forum') {
-      if (user_access('administer forums') || (!module_exists('og_access') || variable_get('forum_all_public', 0))) {
+	if (arg(0) == 'forum') { 
+      if (user_access('administer forums') || (!module_exists('og_access') || variable_get('forum_all_public', 0))) {  
 	    return;
       // On forum* paths, filter terms by og_forum_is_public() and the user's
       // group memberships via {og_term} relationships.
@@ -727,20 +727,20 @@ function _og_forum_set_breadcrumb($tid, $is_forum_post = FALSE) {
   if ($gid != NULL) {
     $node = node_load($gid);
 	$breadcrumb[] = l(t('Groups'), 'og'); 
-	$breadcrumb[] = l(t("@title", array('@title' => $node->title)), 'node/'. $node->nid);
+	$breadcrumb[] = l($node->title, 'node/'. $node->nid);
   }
   if ($parents && count($parents) != 1) {
     $p = array_shift($parents);
-    $title = 'Forums';
-    $breadcrumb[] = l(t("@title", array('@title' => 'Forums')), 'forum/' . $p->tid);
+    $title = t('Forums');
+	$breadcrumb[] = l($title, 'forum/' . $p->tid);
     foreach ($parents as $p) {
       if ($p->tid == $tid) {
         $title = $p->name;
         if ($is_forum_post)
-          $breadcrumb[] = l(t("@title", array('@title' => $p->name)), 'forum/' .$p->tid);
+          	$breadcrumb[] = l(t($p->name), 'forum/' .$p->tid);
       }
       else {
-        $breadcrumb[] = l(t("@title", array('@title' => $p->name)), 'forum/' .$p->tid);
+        $breadcrumb[] = l(t($p->name), 'forum/' .$p->tid);
       }
     }
   }
@@ -1194,10 +1194,10 @@ function _og_forum_manage_breadcrumb($group, $op = NULL) {
   global $vocabulary;	
   $breadcrumb[] = l(t('Home'), NULL);
   if ($vocabulary->name) {
-    $breadcrumb[] = l(t("@name", array('@name' => $vocabulary->name)), 'forum');
+    $breadcrumb[] = l($vocabulary->name, 'forum');	
   }
-  $breadcrumb[] = l(t("@name", array('@name' => $group->title)), 'node/' .$group->nid);
-  
+  $breadcrumb[] = l($group->title, 'node/' . $group->nid);
+
   switch ($op) {
     case 'add':
       $breadcrumb[] = l(t("Add @title forums", array('@title' => $group->title)), 'og_forum/manage/' .$group->nid);
@@ -1336,7 +1336,7 @@ function og_forum_preprocess_forums(&$variables) {
 }
 
 function _og_forum_set_group_context($group) {
-  og_set_theme($group->nid);
+  og_set_theme($group);
   og_set_language($group);
   og_set_group_context($group);
 }
