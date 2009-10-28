@@ -566,7 +566,7 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
       elseif ($node->type == 'forum') {//if the node is marked public, check the 'puclicity' settings and act accordingly
         //setup variables for common operations
         $sql = "SELECT tid, public FROM {og_term} WHERE nid = %d"; 
-        $container = og_forum_get_forum_container($node->og_groups[0]);
+        $container = og_forum_get_forum_container(current($node->og_groups));
         $gid = og_forum_gid_from_tid($node->tid);
         $results = db_query($sql, $gid);
         while ($result = db_fetch_object($results)) {
@@ -619,7 +619,7 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
       elseif ($node->type == 'forum') {//if the node is marked public, check the 'puclicity' settings and act accordingly
         //setup variables for common operations
         $sql = "SELECT tid, public FROM {og_term} WHERE nid = %d";
-        $container = og_forum_get_forum_container($node->og_groups[0]);
+        $container = og_forum_get_forum_container(current($node->og_groups));
         $gid = og_forum_gid_from_tid($node->tid);
         $results = db_query($sql, $gid);
         while ($result = db_fetch_object($results)) {
@@ -667,26 +667,13 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
       }
       break;
     case 'view':
-      // Don't do anything when handling teasers
-      if ($teaser) {
-        break;
-      }
       // If we're viewing a forum post in a group forum, set that
       // group as the context.
-      if ($page && !empty($node->og_groups) && $node->type == 'forum') {
-        og_set_group_context(node_load($node->og_groups[0]));
-        
-        if (is_numeric($node->tid)) {
-          $tid = $node->tid;
-        }
-        // Breadcrumb navigation:
-        global $_menu;
-        if (og_get_group_context()) { 
-	      _og_forum_set_breadcrumb($tid);  
-        }
-        drupal_set_title(check_plain($node->title));
-        break;
+      if (!empty($page) && isset($node->og_forum_nid)) {
+	    $group = node_load($node->og_forum_nid);
+	    og_set_group_context($group);	
       }
+      break;
    case 'presave':
      if ($node->type == 'forum') {
        $gid = og_forum_gid_from_tid($node->tid);
@@ -820,7 +807,7 @@ function og_forum_retroactively_apply() {
 function og_forum_form_alter(&$form, &$form_state, $form_id) {
   // Auto-select group's forum when adding/editing a forum topic
   if ($form_id == 'forum_node_form') {   
-    $group = og_get_group_context();  
+    $group = og_get_group_context();
     //if we couldn't get the context from og, don't give up. Try getting it from the nid if we have one.
     if (empty($group)) {
       if (arg(0) == 'node' && arg(2) == 'edit' && is_numeric(arg(1))) { 
@@ -1317,7 +1304,7 @@ function og_forum_get_vid() {
 }	
 
 function og_forum_preprocess_node(&$variables) {
-  if ($variables['type'] == 'forum') {
+  	if (!empty($variables['page']) && $variables['type'] == 'forum') {
     _og_forum_set_breadcrumb($variables['tid'], TRUE); 
   }
 }
