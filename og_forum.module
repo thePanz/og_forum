@@ -413,7 +413,12 @@ function og_forum_db_rewrite_sql($query, $primary_table = 'n', $primary_field = 
         return $return;
       }
     }
-    if (arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum' && empty($_GET['gids'])) {
+    if (arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum') {
+	  if (isset($_GET['gids']) && is_array($_GET['gids']) && isset($_GET['gids'][0]) && is_numeric($_GET['gids'][0])) {
+	    if (in_array($_GET['gids'][0], array_keys($user->og_groups))) {
+	      return;
+	    }
+	  }
       $return['join'] = "LEFT JOIN {og_term} ogt ON t.tid = ogt.tid";
       $return['where'] = "ogt.nid IS NULL";
       if ($og_forum_container = variable_get('forum_default_container', FALSE)) {
@@ -773,10 +778,10 @@ function og_forum_og_create_links($group) {
   // Get group's forum
   $forum  = og_forum_get_forum_container($group->nid);
   if ($forum) {
-    $links[] = l(t('Group forums'), "forum/$forum", array('attributes' => array('title' => t('View group forum discussions.'))));
+    $links['forums'] = l(t('Group forums'), "forum/$forum", array('attributes' => array('title' => t('View group forum discussions.'))));
   // Add forum creation link for the group managers
     if ((og_forum_is_admin($group) && user_access('admin own group forums')) || user_access('administer forums')) { 
-      $links[] = l(t('Manage group forums'), 'og_forum/manage/' . $group->nid, array('attributes' => array('title' => t('Let you create, edit, delete group\'s forums.'))));
+      $links['manage_forums'] = l(t('Manage group forums'), 'og_forum/manage/' . $group->nid, array('attributes' => array('title' => t('Let you create, edit, delete group\'s forums.'))));
     }
   }
   return $links;
