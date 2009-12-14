@@ -94,13 +94,24 @@ function og_forum_menu() {
     'access arguments' => array(3),
     'type' => MENU_CALLBACK
   );
-  $items['node/%og_forum_group_type/forum'] = array(
+  $items['node/%og_forum_group_type/og/forum'] = array(
     'title' => 'Forums',
-    'page callback' => 'drupal_goto',
+    'page callback' => 'forum_page',
     'page arguments' => array(1),
-    'access callback'   => TRUE,
-    'type' => MENU_LOCAL_TASK
+   	'access arguments' => array('access content'),
+	'type' => MENU_LOCAL_TASK,
+	'file' => 'forum.pages.inc',
+	'file path' => drupal_get_path('module', 'forum')
   ); 
+  $items['node/%og_forum_group_type/og/forum/%'] = array(
+    'title' => 'Forums',
+    'page callback' => 'forum_page',   
+    'page arguments' => array(4),
+    'access arguments' => array('access content'),
+    'type' => MENU_LOCAL_TASK,
+    'file' => 'forum.pages.inc',
+    'file path' => drupal_get_path('module', 'forum')
+   );
   return $items;
 }
 
@@ -110,6 +121,12 @@ function og_forum_menu() {
 function og_forum_menu_alter(&$callbacks) {
   $callbacks['forum']['access callback'] = 'og_forum_access_forum_page';
   $callbacks['forum']['access arguments'] = array(1);
+  $callbacks['forum']['page callback'] = 'og_forum_topic_redirect';
+}
+
+function og_forum_topic_redirect($tid) {
+  $gid = og_forum_gid_from_tid($tid);
+  drupal_goto("node/$gid/og/forum/$tid");  
 }
 
 function og_forum_access_privileges_1 ($gid) {
@@ -134,7 +151,7 @@ function og_forum_group_type_load($arg) {
      global $user;
      $tid = og_forum_get_forum_container($arg);
      if (og_forum_is_public($tid) || (!empty($user->og_groups) && array_key_exists($arg, $user->og_groups)) || user_access('administer forums'))
-       return 'forum/'.$tid;
+       return $tid;
      else
        return FALSE;
   }
