@@ -124,9 +124,13 @@ function og_forum_menu_alter(&$callbacks) {
   $callbacks['forum']['page callback'] = 'og_forum_topic_redirect';
 }
 
-function og_forum_topic_redirect($tid) {
-  $gid = og_forum_gid_from_tid($tid);
-  drupal_goto("node/$gid/og/forum/$tid");  
+function og_forum_topic_redirect($tid=0) {
+  if ($tid) {	 
+    $gid = og_forum_gid_from_tid($tid);
+    if ($gid)
+      drupal_goto("node/$gid/og/forum/$tid");  
+  }
+  return forum_page($tid);
 }
 
 function og_forum_access_privileges_1 ($gid) {
