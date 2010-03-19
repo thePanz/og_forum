@@ -153,6 +153,9 @@ function og_forum_group_type_load($arg) {
   $node = node_load($arg);
   if (og_is_group_type($node->type)) {
      global $user;
+     if (!isset($user->og_groups)) {
+       $user->og_groups = og_get_subscriptions($user->uid);
+     }
      $tid = og_forum_get_forum_container($arg);
      if (og_forum_is_public($tid) || (!empty($user->og_groups) && array_key_exists($arg, $user->og_groups)) || user_access('administer forums'))
        return $tid;
@@ -1359,7 +1362,9 @@ function og_forum_access_forum_page($tid = 0) {
     return FALSE;
   }
   global $user;
-
+  if (!isset($user->og_groups)) {
+    $user->og_groups = og_get_subscriptions($user->uid);
+  }
   if ($tid != 0) {
     og_forum_set_og_group_context_from_tid($tid);
     $gid = og_forum_gid_from_tid($tid); 
