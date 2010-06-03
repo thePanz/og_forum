@@ -847,8 +847,9 @@ function og_forum_form_alter(&$form, &$form_state, $form_id) {
       }
     }
     if (isset($group->nid)) {
-	  $gid = $group->nid;
+      $gid = $group->nid;
       $results = db_query('SELECT ot.tid, th.parent FROM {og_term} ot LEFT JOIN {term_hierarchy} th ON ot.tid = th.tid WHERE nid = %d ORDER BY tid ASC', $gid);
+      $all_results = array();
       while ($result = db_fetch_object($results)) {
         $all_results[$result->tid] = $result->parent;
       }
