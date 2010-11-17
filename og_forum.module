@@ -421,37 +421,47 @@ function og_forum_db_rewrite_sql($query, $primary_table = 'n', $primary_field = 
   global $user;
 
   if ($primary_field == 'tid') { 
-	if (arg(0) == 'forum') { 
+    if (arg(0) == 'forum') {
       if (user_access('administer forums') || (!module_exists('og_access') || variable_get('forum_all_public', 0))) {  
-	    return;
-      // On forum* paths, filter terms by og_forum_is_public() and the user's
-      // group memberships via {og_term} relationships.
+        return array();
       } else {
-        $return['join'] = "LEFT JOIN {og_term} ogt ON ogt.tid = t.tid";
-        // Either the forum is unconfigured or public.
-        $return['where'] = "ogt.public IS NULL OR ogt.public > " . PRIVATE_BY_GROUP_OWNER;
-        // ...or the user is member of the group associated with the forum.
-        if (!empty($user->og_groups)) {
-          $return['where'] .= " OR ogt.nid IN (" . implode(',', array_keys($user->og_groups)) . ")";
-        }
-        return $return;
+        // Rewrite the forum access
+        return og_forum_get_sql();
       }
     }
-    if (arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum') {
-	  if (isset($_GET['gids']) && is_array($_GET['gids']) && isset($_GET['gids'][0]) && is_numeric($_GET['gids'][0])) {
-	    if (in_array($_GET['gids'][0], array_keys($user->og_groups))) {
-	      return;
+    elseif (arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'forum') {
+	    if (isset($_GET['gids']) && is_array($_GET['gids']) && isset($_GET['gids'][0]) && is_numeric($_GET['gids'][0])) {
+        // if a &gids is present in the URL
+	      if (in_array($_GET['gids'][0], array_keys($user->og_groups))) {
+	        return array();
+	      }
 	    }
-	  }
-      $return['join'] = "LEFT JOIN {og_term} ogt ON t.tid = ogt.tid";
-      $return['where'] = "ogt.nid IS NULL";
-      if ($og_forum_container = variable_get('forum_default_container', FALSE)) {
-        $return['where'] .= " AND t.tid != $og_forum_container";
-      }
-      $return['distinct'] = TRUE;
-      return $return;
+      // Rewrite the forum access
+      return og_forum_get_sql();
     }
   }
+}
+
+/**
+ * Filter terms by: og_forum_is_public(), user's group subscription and group forum term {og_term}
+ */
+function og_forum_get_sql() { 
+  global $user;
+  $return = array();
+  $return['distinct'] = TRUE;
+  $return['join'] = "LEFT JOIN {og_term} ogt ON ogt.tid = t.tid";
+  // Either the forum is unconfigured or public or public
+  $return['where'] = "ogt.public > " . PRIVATE_BY_GROUP_OWNER;
+  
+  if (!empty($user->og_groups)) { 
+    // Add own user groups into accessible forums/TIDs
+    $return['where'] .= " OR ogt.nid IN (" . implode(',', array_keys($user->og_groups)) . ")";
+  }
+  
+  if ($og_forum_container = variable_get('forum_default_container', FALSE)) {
+    $return['where'] .= " AND t.tid != $og_forum_container"; 
+  }
+  return $return;
 }
 
 /**

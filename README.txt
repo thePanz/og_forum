@@ -6,7 +6,7 @@
 This module extends the forum module to allow for Organic Groups to have their own forums.
 When viewing groups, only forum discussions for that group are displayed. This module does
 not hinder the creation of site-wide forums in any way. You can have both OG forums and
-site-wide forums.  There are a multitude of settings for customizing how these forums work
+site-wide forums.  There are a multitude of settings for customizing how these forums work.
 which are detailed below.
 
 --CONTENTS--
@@ -52,7 +52,7 @@ which are detailed below.
   'admin own group forums'. The former is to allow non-group-owners the ability to set
   the publicity of forums in groups. Usually, you will want to reserve this for admins.
   
-  The latter is to allow group owners all priviledges for administering forums of their
+  The latter is to allow group owners all privileges for administering forums of their
   groups.
 
 --FEATURES--
@@ -91,7 +91,7 @@ which are detailed below.
     
    -AUTOMATIC FORUM PUBLICITY
       This turns on/off the automatic publicity of group forums. If a group forum has at
-      least one post which is public, than entries will be made in the database to indicate
+      least one post which is public, then entries will be made in the database to indicate
       that the forum and its container are also publicly browsable. If a group forum does
       not have any public posts, then that forum will not be publicly browsable except as
       noted below in conjunction with other settings.
@@ -101,13 +101,13 @@ which are detailed below.
       
    -ALLOW PUBLIC CHOICE
       This allows group owners to decide which of their forums are public or private, but
-      can also work with the auto setting above. First an explaination without the auto
+      can also work with the auto setting above. First an explanation without the auto
       setting:
       
         In each forum, the group owner (or admins) will see a link in the context menu to
         'Administer group forums' which presents a table structure whereby they may edit
         forums' names or delete them, add forums to the container, make them public,
-        make them private, or rest them. The publicity settings enter these values into the
+        make them private, or reset them. The publicity settings enter these values into the
         database - PRIVATE_SET_BY_OWNER, PUBLIC_SET_BY_OWNER, and PRIVATE_DEFAULT. The 'set
         by owner' values take precedence over the 'auto' and 'default' values.
         
@@ -120,7 +120,7 @@ which are detailed below.
         
    -MAKE ALL FORUMS PUBLIC
       Checking this does not mean you can't check the options above. However, the effects of
-      any settings made under the above settings will not be appearant unless this feature
+      any settings made under the above settings will not be apparent unless this feature
       is later turned off. This is either an easy way to ensure that all forums are always
       browsable by the public, or may be used to temporarily open the site for something like
       an 'open house'. Turning it off would keep in-tact any settings made before its use.
