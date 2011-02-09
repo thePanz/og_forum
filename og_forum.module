@@ -59,7 +59,7 @@ function og_forum_menu() {
   $items['og_forum/manage/private/%/%'] = array(
     'title' => t('Make forum private'),
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('og_forum_set_private_form', 3, 4)
+    'page arguments' => array('og_forum_set_private_form', 3, 4),
     'access callback' =>  'og_forum_access_privileges_1',
     'access arguments' => array(3),
     'type' => MENU_CALLBACK,
@@ -105,9 +105,9 @@ function og_forum_menu() {
     'page callback' => 'forum_page',
     'page arguments' => array(1),
    	'access arguments' => array('access content'),
-	'type' => MENU_LOCAL_TASK,
-	'file' => 'forum.pages.inc',
-	'file path' => drupal_get_path('module', 'forum')
+    'type' => MENU_LOCAL_TASK,
+    'file' => 'forum.pages.inc',
+    'file path' => drupal_get_path('module', 'forum'),
   ); 
   $items['node/%og_forum_group_type/og/forum/%'] = array(
     'title' => 'Forums',
@@ -1067,8 +1067,7 @@ function og_forum_form_main($type, $group_id, $tid) {
       $edit = (array)$term;
       return drupal_get_form('og_forum_form_forum', $edit, $group_id);
   }
-} // function og_forum_form_main(
-
+}
 
 /**
  * Render forum creation form
@@ -1210,7 +1209,7 @@ function og_forum_taxonomy($op, $type, $obj) {
       }
       break;
   }
-} // function og_forum_taxonomy()
+}
 
 /**
  * Returns a confirmation page for deleting a forum taxonomy term.
@@ -1226,7 +1225,7 @@ function og_forum_confirm_delete($form_state, $tid, $group_id) {
   $form['return'] = array('#type' => 'value', '#value' => 'og_forum/manage/' .arg(3));
   $form = confirm_form($form, t('Are you sure you want to delete the forum %name?', array('%name' => $term->name)), $return_address, t('Deleting a forum or container will delete all sub-forums and associated posts as well. This action cannot be undone.'), t('Delete'), t('Cancel'));
   return $form;
-} // function og_forum_confirm_delete()
+}
 
 /**
  * Implementation of forms api _submit call. Deletes a forum after confirmation.
@@ -1239,7 +1238,7 @@ function og_forum_confirm_delete_submit($form, &$form_state) {
   watchdog('content', t('forum: deleted %term and all its sub-forums and associated posts.', array('%term' => $form_values['name'])));
   db_query('DELETE FROM {og_term} WHERE tid = %d', $form_values['tid']);
   $form_state['redirect'] = $form_values['return'];
-} // function og_forum_confirm_delete_submit()
+}
 
 /**
  * Set a nice breadcrumb for the manage pages
@@ -1264,7 +1263,7 @@ function _og_forum_manage_breadcrumb($group, $op = NULL) {
       break;
   }
   drupal_set_breadcrumb($breadcrumb);
-} // function _og_forum_manage_breadcrumb()
+}
 
 /**
  * get an array containing terms associated to this og
