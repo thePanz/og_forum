@@ -660,14 +660,14 @@ function og_forum_og_create_links($group) {
   $forum  = og_forum_get_forum_container($group->nid);
   if ($forum) {
     if (variable_get('og_forum_display_group_forum_link', 1) == 1) {
-      dpm($forum);
       $links['forums'] = l(
         t('Group forums'),
         'node/'.$group->nid . '/og/forum',
+        // 'forum/' . $forum,
         array('attributes' => array('title' => t('View group forum discussions.')))
       );
     }
-  // Add forum creation link for the group managers
+    // Add forum creation link for the group managers
     if ((og_forum_is_admin($group) && user_access('admin own group forums')) || user_access('administer forums')) { 
       $links['manage_forums'] = l(
         t('Manage group forums'),
