@@ -122,7 +122,10 @@ function og_forum_manage($gid) {
   $content = '<p>' .t('This page shows the forums associated with the %group group.', array('%group' => $group->title)). '</p>';
   $og_terms = _og_forum_ogterms($group);
   $forum_limit_reached = og_forum_forum_limit_reached($group->nid);
+  
   $header = array(t('Name'), t('Operations'));
+  $rows = array();
+  
   $sql = "SELECT public, tid FROM {og_term} WHERE nid = %d";
   $results = db_query($sql, $group->nid);
   $all_tids = array();
@@ -132,28 +135,53 @@ function og_forum_manage($gid) {
   $tree = taxonomy_get_tree(og_forum_get_vid());
   if ($tree) {
     foreach ($tree as $term) {
+      $row = array();
+      
       if (in_array($term->tid, $og_terms)) {
-        if (in_array($term->tid, variable_get('forum_containers', array()))) {//we're looking at a container
-          if ($forum_limit_reached && !(user_access('administer forums'))) {//the limit for the number of forums allowed was reached
+        if (in_array($term->tid, variable_get('forum_containers', array()))) {
+          //we're looking at a container
+          if ($forum_limit_reached && !(user_access('administer forums'))) {
+            //the limit for the number of forums allowed was reached
             $rows[] = array(array('data' => t('You have reached the maximum allowed number of forums for groups.'), 'colspan' => '3'));
             $rows[] = array(str_repeat('-', $term->depth). ' ' .check_plain($term->name), array('data' => '', 'colspan' => '3'));
           }
-          else {//the limit on the number of forums has not been reached, or there is no limit
-            $rows[] = array(str_repeat('-', $term->depth). ' ' .check_plain($term->name), array('data' => l(t('add forum'), "og_forum/manage/add/$group->nid/$term->tid"), 'colspan' => '3'));
+          else {
+            //the limit on the number of forums has not been reached, or there is no limit
+            $rows[] = array(
+              str_repeat('-', $term->depth). ' ' .check_plain($term->name),
+              array('data' => l(t('add forum'), "og_forum/manage/add/$group->nid/$term->tid"), 'colspan' => '3')
+            );
           }
         }
-        else {//we're looking at a forum, not a container
-          if ((user_access('make forums public') || $allow_public) && $all_tids[$term->tid] < PUBLIC_AUTO) {//it's presently private
-            $rows[] = array(str_repeat('-', $term->depth). ' ' .check_plain($term->name), l(t('edit forum'), "og_forum/manage/edit/$group->nid/$term->tid"), l(t('make public'), "og_forum/manage/public/$group->nid/$term->tid"), l(t('reset publicity'), "og_forum/manage/reset/$group->nid/$term->tid"));
+        else {
+          //we're looking at a forum, not a container
+          if ((user_access('make forums public') || $allow_public) && $all_tids[$term->tid] < PUBLIC_AUTO) {
+            //it's presently private
+            $rows[] = array(
+              str_repeat('-', $term->depth). ' ' .check_plain($term->name),
+              l(t('edit forum'), "og_forum/manage/edit/$group->nid/$term->tid"),
+              l(t('make public'), "og_forum/manage/public/$group->nid/$term->tid"),
+              l(t('reset publicity'), "og_forum/manage/reset/$group->nid/$term->tid")
+            );
           }
-          elseif ((user_access('make forums public') || $allow_public) && $all_tids[$term->tid] > PRIVATE_BY_GROUP_OWNER) {//it's presently public
-            $rows[] = array(str_repeat('-', $term->depth). ' ' .check_plain($term->name), l(t('edit forum'), "og_forum/manage/edit/$group->nid/$term->tid"), l(t('make private'), "og_forum/manage/private/$group->nid/$term->tid"), l(t('reset publicity'), "og_forum/manage/reset/$group->nid/$term->tid"));
+          elseif ((user_access('make forums public') || $allow_public) && $all_tids[$term->tid] > PRIVATE_BY_GROUP_OWNER) {
+            //it's presently public
+            $rows[] = array(
+              str_repeat('-', $term->depth). ' ' .check_plain($term->name),
+              l(t('edit forum'), "og_forum/manage/edit/$group->nid/$term->tid"),
+              l(t('make private'), "og_forum/manage/private/$group->nid/$term->tid"),
+              l(t('reset publicity'), "og_forum/manage/reset/$group->nid/$term->tid"));
           }
           else {
-            $rows[] = array(str_repeat('-', $term->depth). ' ' .check_plain($term->name), l(t('edit forum'), "og_forum/manage/edit/$group->nid/$term->tid"));
+            $rows[] = array(
+              str_repeat('-', $term->depth). ' ' .check_plain($term->name),
+              l(t('edit forum'), "og_forum/manage/edit/$group->nid/$term->tid")
+            );
           }
         }
       }
+      
+      // $rows[] = $row;
     }
   }
   return $content . theme('table', $header, $rows);
