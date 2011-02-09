@@ -235,7 +235,6 @@ function og_forum_block($op = 'list', $delta = 0, $edit = array()) {
   }
 }
 
-
 /**
  * using the tid, set the group context
  */
@@ -634,7 +633,7 @@ function _og_forum_set_breadcrumb($tid, $is_forum_post = FALSE) {
 function og_forum_get_forum_container($group_id) {
   // If it exists, grab the first term created for group; this will be the forum container; if not, it is a forum inside a generic container; find it
   return db_result(db_query_range('SELECT tid FROM {og_term} WHERE nid = %d ORDER BY tid ASC', $group_id, 0, 1));
-} // function og_forum_get_forum_container()
+}
 
 /**
  * Check if a user is a group manager of the given group
@@ -661,9 +660,10 @@ function og_forum_og_create_links($group) {
   $forum  = og_forum_get_forum_container($group->nid);
   if ($forum) {
     if (variable_get('og_forum_display_group_forum_link', 1) == 1) {
+      dpm($forum);
       $links['forums'] = l(
         t('Group forums'),
-        'forum/$forum',
+        'node/'.$group->nid . '/og/forum',
         array('attributes' => array('title' => t('View group forum discussions.')))
       );
     }
