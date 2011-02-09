@@ -45,31 +45,35 @@ function og_forum_menu() {
     'page arguments' => array('og_forum_admin_settings'),
     'access arguments' => array('administer site configuration'),
   );
+  
+  // OG Forum manage menu callbacks
    $items['og_forum/manage/public/%/%'] = array(
     'title' => t('Make forum public'),
-    'page callback' => 'og_forum_public',
-    'page arguments' => array(3,4),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('og_forum_set_public_form', 3, 4),
     'access callback' =>  'og_forum_access_privileges_1',
     'access arguments' => array(3),
-    'type' => MENU_CALLBACK
+    'type' => MENU_CALLBACK,
+    'file' => 'og_forum.manage.inc',
   );
   $items['og_forum/manage/private/%/%'] = array(
     'title' => t('Make forum private'),
-    'page callback' => 'og_forum_private',
-    'page arguments' => array(3,4),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('og_forum_set_private_form', 3, 4)
     'access callback' =>  'og_forum_access_privileges_1',
     'access arguments' => array(3),
-    'type' => MENU_CALLBACK
+    'type' => MENU_CALLBACK,
+    'file' => 'og_forum.manage.inc',
   );
   $items['og_forum/manage/reset/%/%'] = array(
     'title' => t('Reset forum publicity'),
-    'page callback' => 'og_forum_reset',
-    'page arguments' => array(3,4),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('og_forum_reset_form', 3,4),
     'access callback' =>  'og_forum_access_privileges_1',
     'access arguments' => array(3),
-    'type' => MENU_CALLBACK
+    'type' => MENU_CALLBACK,
+    'file' => 'og_forum.manage.inc',    
   );
-
   $items['og_forum/manage/%'] = array(
     'title' => t('Manage groups forum'),
     'page callback' => 'og_forum_manage',
@@ -77,6 +81,7 @@ function og_forum_menu() {
     'access callback' =>  'og_forum_access_privileges_2',
     'access arguments' => array(2),
     'type' => MENU_CALLBACK,
+    'file' => 'og_forum.manage.inc',    
   );            
   $items['og_forum/manage/add/%/%'] = array(
     'title' => t('Add forum'),
@@ -84,7 +89,8 @@ function og_forum_menu() {
     'page arguments' => array(2,3,4),
     'access callback' =>  'og_forum_access_privileges_3',
     'access arguments' => array(3,4),
-    'type' => MENU_CALLBACK
+    'type' => MENU_CALLBACK,
+    'file' => 'og_forum.manage.inc',
   );       
   $items['og_forum/manage/edit/%/%'] = array(
     'title' => t('Edit forum'),
@@ -1291,59 +1297,7 @@ function og_forum_forum_limit_reached($nid) {
   else {
     return FALSE;
   }
-} // function og_forum_forum_limit_reached()
-
-/**
- * Set a forum as public, and its container as well
- *
- * @param int $gid The group id of the forum.
- * @param int $tid The term id of the forum.
- */
-function og_forum_public($gid, $tid) {
-  $container = og_forum_get_forum_container($gid);
-  $sql = "UPDATE {og_term} SET public = %d WHERE tid = %d and nid = %d";
-  db_query($sql, PUBLIC_BY_GROUP_OWNER, $tid, $gid);
-  db_query($sql, PUBLIC_BY_GROUP_OWNER, $container, $gid);
-  return drupal_goto('og_forum/manage/'. $gid);
-} // function og_forum_public()
-
-/**
- * Set forum as private, and its container if no other forums in it are public
- *
- * @param int $gid
- * @param int $tid
- */
-function og_forum_private($gid, $tid) {
-  $container = og_forum_get_forum_container($gid);
-  $sql = "UPDATE {og_term} SET public = %d WHERE tid = %d and nid = %d";
-  db_query($sql, PRIVATE_BY_GROUP_OWNER, $tid, $gid);
-  $sql2 = "SELECT COUNT(tid) FROM {og_term} WHERE nid = %d AND tid <> %d AND public > 1";
-  $results = db_query($sql2, $gid, $container);//find out if any other forums are public
-  $result = db_result($results);
-  if (!$result) {//if no other forums in the group are public, go ahead and make the container private
-    db_query($sql, PRIVATE_DEFAULT, $container, $gid);
-  }
-  return drupal_goto('og_forum/manage/'. $gid);
-} // function og_forum_private()
-
-/**
- * Reset forum to default of PRIVATE_DEFAULT, and its container if no other forums in it are public
- *
- * @param int $gid
- * @param int $tid
- */
-function og_forum_reset($gid, $tid) {
-  $container = og_forum_get_forum_container($gid);
-  $sql = "UPDATE {og_term} SET public = %d WHERE tid = %d and nid = %d";
-  db_query($sql, PRIVATE_DEFAULT, $tid, $gid);
-  $sql2 = "SELECT COUNT(tid) FROM {og_term} WHERE nid = %d AND tid <> %d AND public > 1";
-  $results = db_query($sql2, $gid, $container);//find out if any other forums are public
-  $result = db_result($results);
-  if (!$result) {//if no other forums in the group are public, go ahead and make the container private
-    db_query($sql, PRIVATE_DEFAULT, $container, $gid);
-  }
-  return drupal_goto('og_forum/manage/'. $gid);
-} // function og_forum_reset()
+}
 
 /**
  * Test whether a tid (forum or container) is public and return results.
