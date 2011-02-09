@@ -98,7 +98,7 @@ function og_forum_menu() {
     'page arguments' => array(2,3,4),
     'access callback' =>  'og_forum_access_privileges_2',
     'access arguments' => array(3),
-    'type' => MENU_CALLBACK
+    'type' => MENU_CALLBACK,
     'file' => 'og_forum.manage.inc',
   );
   $items['node/%og_forum_group_type/og/forum'] = array(
@@ -1235,6 +1235,9 @@ function og_forum_is_public($tid) {
   }
 }
 
+/**
+ * Get the OG_FORUM vocabulary ID
+ */
 function og_forum_get_vid() {
   $vid = variable_get('forum_nav_vocabulary', '');
   return $vid;
