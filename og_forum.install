@@ -18,9 +18,26 @@ function og_forum_install() {
 function og_forum_schema() {
   $schema['og_term'] = array(
     'fields' => array(
-      'tid' => array('type' => 'int', 'disp-width' => '10','unsigned' => TRUE, 'not null' => TRUE, 'default' => '0'), 
-      'nid' => array('type' => 'int', 'disp-width' => '10','unsigned' => TRUE, 'not null' => TRUE, 'default' => '0'),
-      'public' => array('type' => 'int', 'disp-width' => '1','unsigned' => TRUE, 'not null' => TRUE, 'default' => '0'),
+      'tid' => array(
+        'type' => 'int',
+        'disp-width' => '10',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => '0'),
+      'nid' => array(
+        'type' => 'int',
+        'disp-width' => '10',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => '0'
+      ),
+      'public' => array(
+        'type' => 'int',
+        'disp-width' => '1',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => '0'
+      ),
     ),   
     'primary key' => array('tid','nid')
   );
@@ -43,7 +60,7 @@ function og_forum_uninstall() {
     'forum_default_name', 'forum_default_container_yn', 'forum_default_container',
     'forum_allow_public', 'forum_all_public', 'forum_auto_public',
     'forum_limit',
-
+    'og_forum_display_group_forum_link',
   );
   foreach ($variables as $variable) {
     variable_del($variable);
