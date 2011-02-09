@@ -42,7 +42,7 @@ function og_forum_menu() {
     'title' => t('Organic groups forums'),
     'description' => t('Configure forums for organic groups'),
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('og_forum_admin_settings'),
+    'page arguments' => array('og_forum_admin_form'),
     'access arguments' => array('administer site configuration'),
     'file' => 'og_forum.admin.inc',
   );
