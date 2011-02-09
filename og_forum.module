@@ -132,11 +132,15 @@ function og_forum_menu_alter(&$callbacks) {
   $callbacks['forum']['page callback'] = 'og_forum_topic_redirect';
 }
 
-function og_forum_topic_redirect($tid=0) {
-  if ($tid) {	 
-    $gid = og_forum_gid_from_tid($tid);
-    if ($gid)
-      drupal_goto("node/$gid/og/forum/$tid");  
+/**
+ *
+ */
+function og_forum_topic_redirect($tid = NULL) {
+  if (!empty($tid)) {	 
+    $gid = og_forum_get_gid_from_tid($tid);
+    if ($gid) {
+      drupal_goto("node/$gid/og/forum/$tid");
+    }
   }
   return forum_page($tid);
 }
@@ -236,28 +240,34 @@ function og_forum_block($op = 'list', $delta = 0, $edit = array()) {
 }
 
 /**
- * using the tid, set the group context
+ * Set the group_context from the given forum TID
  */
-function og_forum_set_og_group_context_from_tid($tid=0) {
-  $sql = "SELECT nid FROM {og_term} WHERE tid = %d";
-  if ($gid = db_result(db_query($sql, $tid))) {
-  $group_node = node_load($gid);
-  og_set_group_context($group_node);
+function og_forum_set_og_group_context_from_tid($tid = NULL) {
+  if (!empty($tid)) {
+    $sql = "SELECT nid FROM {og_term} WHERE tid = %d";
+    if ($gid = db_result(db_query($sql, $tid))) {
+      $group_node = node_load($gid);
+      og_set_group_context($group_node);
+    }
   }
-} // function og_forum_set_og_group_context_from_tid()
+}
 
 /**
- * using the tid, get the group id
+ * Get the group ID from the given forum TID
  */
-function og_forum_gid_from_tid($tid=0) {
-  $sql = "SELECT nid FROM {og_term} WHERE tid = %d";
-  if ($gid = db_result(db_query($sql, $tid))) {
-    return $gid;
+function og_forum_get_gid_from_tid($tid = NULL) {
+  static $cache = array();
+  if (!empty($tid)) {
+    if (!isset($cache[$tid])) {
+      $sql = "SELECT nid FROM {og_term} WHERE tid = %d";
+      $cache[$tid] = db_result(db_query($sql, $tid));
+    }
+    return $cache[$tid];
   }
   else {
     return 0;
   }
-} // function og_forum_gid_from_tid()
+}
 
 /**
  * Implementation of hook_db_rewrite_sql().
@@ -451,7 +461,7 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
         //setup variables for common operations
         $sql = "SELECT tid, public FROM {og_term} WHERE nid = %d"; 
         $container = og_forum_get_forum_container(current($node->og_groups));
-        $gid = og_forum_gid_from_tid($node->tid);
+        $gid = og_forum_get_gid_from_tid($node->tid);
         $results = db_query($sql, $gid);
         while ($result = db_fetch_object($results)) {
           $forums[$result->tid] = $result->public;
@@ -504,7 +514,7 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
         //setup variables for common operations
         $sql = "SELECT tid, public FROM {og_term} WHERE nid = %d";
         $container = og_forum_get_forum_container(current($node->og_groups));
-        $gid = og_forum_gid_from_tid($node->tid);
+        $gid = og_forum_get_gid_from_tid($node->tid);
         $results = db_query($sql, $gid);
         while ($result = db_fetch_object($results)) {
           $forums[$result->tid] = $result->public;
@@ -560,7 +570,7 @@ function og_forum_nodeapi($node, $op, $teaser = NULL, $page = NULL) {
       break;
    case 'presave':
      if ($node->type == 'forum') {
-       $gid = og_forum_gid_from_tid($node->tid);
+       $gid = og_forum_get_gid_from_tid($node->tid);
        $node->og_groups = array();
        $node->og_groups[$gid] = $gid; 
        $node->og_groups = array_filter($node->og_groups);
@@ -578,7 +588,7 @@ function og_forum_comment(&$a1, $op) {
   if (is_numeric($node->tid)) {
     $tid = $node->tid;
     og_forum_set_og_group_context_from_tid($tid);
-    $gid = og_forum_gid_from_tid($tid);
+    $gid = og_forum_get_gid_from_tid($tid);
     if ($gid) {
       og_set_theme($gid);
       $group_node = node_load($gid);
@@ -593,7 +603,7 @@ function _og_forum_set_breadcrumb($tid, $is_forum_post = FALSE) {
   $parents = array_reverse(taxonomy_get_parents_all($tid));
   $title = $vocabulary->name;
   // Breadcrumb navigation:
-  $gid = og_forum_gid_from_tid($tid);
+  $gid = og_forum_get_gid_from_tid($tid);
   $breadcrumb[] = l(t('Home'), NULL);
   if ($gid != NULL) {
     $node = node_load($gid);
@@ -625,14 +635,20 @@ function _og_forum_set_breadcrumb($tid, $is_forum_post = FALSE) {
 /**
  * Retrieve container for given group
  *
- * @param $group_id
- *   Organic group ID
- * @return
- *   Forum container's term ID
+ * @param $gid Organic group ID
+ * @return Forum container's term ID
  */
-function og_forum_get_forum_container($group_id) {
-  // If it exists, grab the first term created for group; this will be the forum container; if not, it is a forum inside a generic container; find it
-  return db_result(db_query_range('SELECT tid FROM {og_term} WHERE nid = %d ORDER BY tid ASC', $group_id, 0, 1));
+function og_forum_get_forum_container($gid) {
+  static $cache = array();
+
+  if (!isset($cache[$gid])) {
+    // If it exists, grab the first term created for group;
+    // this will be the forum container; if not, it is a forum inside a generic container; find it
+    $res = db_result(db_query_range('SELECT tid FROM {og_term} WHERE nid = %d ORDER BY tid ASC', $gid, 0, 1));
+    $cache[$gid]= $res;
+  }
+  
+  return $cache[$gid];
 }
 
 /**
@@ -695,15 +711,14 @@ function og_forum_retroactively_apply() {
     }
   }
   drupal_set_message(t('%num groups had forums created', array('%num' => $counter)));
-} // function og_forum_retroactively_apply()
-
+}
 
 /**
  * Implementation of hook_form_alter().
  */
 function og_forum_form_alter(&$form, &$form_state, $form_id) {
   // Auto-select group's forum when adding/editing a forum topic
-  if ($form_id == 'forum_node_form') {   
+  if ($form_id == 'forum_node_form') {
     $group = og_get_group_context();
     //if we couldn't get the context from og, don't give up. Try getting it from the nid if we have one.
     if (empty($group)) {
@@ -889,8 +904,8 @@ function og_forum_form_forum(&$form_state, $edit, $group_id = 0, $tid = 0) {
 } // function og_forum_form_forum()
 
 /**
-  * Validate group id and term id values
-  */
+ * Validate group id and term id values
+ */
 function og_forum_form_validate($form, &$form_state) {
   global $user;
   $form_values = $form_state['values']; 
@@ -906,7 +921,7 @@ function og_forum_form_validate($form, &$form_state) {
   if ($error) {
     form_set_error('name', t('Internal error processing your data. Please contact website administrators.'));
   }
-} // function og_forum_form_validate()
+}
 
 /**
  * Store created/updated forum on the db
@@ -930,13 +945,14 @@ function og_forum_form_submit($form, &$form_state) {
       break;
   }
   $form_state['redirect'] = 'og_forum/manage/' .$form_values['group_id'];
-} // function og_forum_form_submit()
+}
 
 /**
  * hook_taxonomy implementation
  * 
- * This should replace og_forum's own management of terms which bypasses regular taxonomy. Using this function allows group
- * forums to be managed both from within the group and at the site-wide forum admin pages.
+ * This should replace og_forum's own management of terms which bypasses regular taxonomy.
+ * Using this function allows group forums to be managed both from within the group and
+ * at the site-wide forum admin pages.
  *
  * @param string $op
  * @param string $type
@@ -986,7 +1002,7 @@ function og_forum_confirm_delete($form_state, $tid, $group_id) {
 function og_forum_confirm_delete_submit($form, &$form_state) {
   $form_values = $form_state['values'];
   taxonomy_del_term($form_values['tid']);
-  $group_id = og_forum_gid_from_tid($form_values['tid']);
+  $group_id = og_forum_get_gid_from_tid($form_values['tid']);
   drupal_set_message(t('The forum %term and all sub-forums and associated posts have been deleted.', array('%term' => $form_values['name'])));
   watchdog('content', t('forum: deleted %term and all its sub-forums and associated posts.', array('%term' => $form_values['name'])));
   db_query('DELETE FROM {og_term} WHERE tid = %d', $form_values['tid']);
@@ -1078,10 +1094,13 @@ function og_forum_preprocess_node(&$variables) {
     _og_forum_set_breadcrumb($variables['tid'], TRUE); 
   }
 }
-
+/**
+ * Preprocess forums variables (adding OG data)
+ */
 function og_forum_preprocess_forums(&$variables) {
+  // dpm(__function__);
   if(isset($variables['tid']) && $variables['tid'] != 0) {
-    $gid = og_forum_gid_from_tid($variables['tid']);
+    $gid = og_forum_get_gid_from_tid($variables['tid']);
     if (!empty($gid)) {
       _og_forum_set_group_context(node_load($gid));
       _og_forum_set_breadcrumb($variables['tid']);
@@ -1092,13 +1111,19 @@ function og_forum_preprocess_forums(&$variables) {
   }
 }
 
+/**
+ *
+ */
 function _og_forum_set_group_context($group) {
   og_set_theme($group);
   og_set_language($group);
   og_set_group_context($group);
 }
 
-function og_forum_access_forum_page($tid = 0) {
+/**
+ *
+ */
+function og_forum_access_forum_page($tid = NULL) {
   if (!user_access('access content')) {
     return FALSE;
   }
@@ -1106,16 +1131,19 @@ function og_forum_access_forum_page($tid = 0) {
   if (!isset($user->og_groups)) {
     $user->og_groups = og_get_subscriptions($user->uid);
   }
-  if ($tid != 0) {
-    og_forum_set_og_group_context_from_tid($tid);
-    $gid = og_forum_gid_from_tid($tid); 
-    if ($gid) {
+
+  if (!empty($tid)) {
+    // og_forum_set_og_group_context_from_tid($tid);
+    
+    $gid = og_forum_get_gid_from_tid($tid); 
+    if (!empty($gid)) {
       	if (!(!empty($user->og_groups) && array_key_exists($gid, $user->og_groups)) && ($user->uid != 1) && !(user_access('administer forums')) && !og_forum_is_public($tid)) {	
         return FALSE;
       }
       og_set_theme($gid);
       $node = node_load($gid);
       og_set_language($node);
+      return TRUE;
     }
   }
   elseif (is_numeric(og_get_group_context())) {
